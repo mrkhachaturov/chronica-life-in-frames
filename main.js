@@ -7,6 +7,422 @@ if you want to view the source, please visit the github repository of this plugi
 
 var obsidian = require('obsidian');
 
+const en = {
+    // Plugin metadata
+    pluginName: "Chronica – Life in Frames",
+    pluginDescription: "Chronica: Life in Frames — visualize, navigate, and reflect on your life across multiple time scales",
+    // Common actions
+    save: "Save",
+    cancel: "Cancel",
+    edit: "Edit",
+    delete: "Delete",
+    add: "Add",
+    create: "Create",
+    open: "Open",
+    close: "Close",
+    yes: "Yes",
+    no: "No",
+    ok: "OK",
+    // Welcome modal
+    welcome: {
+        title: "Welcome to Chronica",
+        subtitle: "Visualize, navigate, and reflect on your life across multiple time scales.",
+        getStarted: "Let's get started",
+        birthdateSetup: "To create your personal timeline, Chronica needs your birthdate. Let's set that up first.",
+        birthdateLabel: "Your birthdate:",
+        openSettings: "Open Settings",
+        saveBirthdate: "Save Birthdate",
+        skipForNow: "Skip for Now",
+        settingsNote: "You can always change these settings later by going to Settings > Chronica Timeline.",
+        folderSelection: "Select Notes Folders",
+        weeklyNotesFolder: "Weekly Notes Folder:",
+        eventNotesFolder: "Event Notes Folder:",
+        folderWarning: "Please create your dedicated folders in your vault before selecting them here.",
+        folderNote: "You can change these folders later under Settings → Chronica: Life in Frames."
+    },
+    // Event types
+    eventTypes: {
+        majorLife: "Major Life",
+        travel: "Travel",
+        relationship: "Relationship",
+        educationCareer: "Education/Career",
+        createNew: "Create New Event Type",
+        manage: "Manage Event Types",
+        editNote: "Edit names/colors. Presets cannot be deleted.",
+        addNew: "Add New Custom Type",
+        noTypesFound: "No event types found. Resetting to defaults.",
+        type: "Type:",
+        name: "Name",
+        color: "Color"
+    },
+    // Event modal
+    eventModal: {
+        selectDates: "Select Date(s)",
+        singleDate: "Single Date",
+        dateRange: "Date Range",
+        dateHelp: "Select the date(s). The system determines the week(s) automatically.",
+        eventName: "Event Name",
+        eventDescription: "Event Description",
+        startDate: "Start Date",
+        endDate: "End Date"
+    },
+    // Timeline view
+    timeline: {
+        title: "life in frames",
+        loading: "Chronica is initializing and scanning events. Please wait a moment...",
+        loadingEvents: "Chronica: Loading event data...",
+        timelineData: "TIMELINE DATA",
+        addEvent: "Add Event",
+        manageEventTypes: "Manage Event Types",
+        visualization: "VISUALIZATION",
+        fitToScreen: "Fit to Screen",
+        displaySettings: "DISPLAY SETTINGS",
+        cellShape: "Cell Shape",
+        gridOrientation: "Grid Orientation",
+        legend: "LEGEND",
+        noEventTypes: "No event types defined.",
+        period: "Period (ISO):",
+        cell: "Cell:",
+        eventNote: "Event Note:",
+        weeklyNote: "Weekly Note:"
+    },
+    // Statistics panel
+    stats: {
+        title: "Statistics",
+        overview: "Overview",
+        events: "Events",
+        timeline: "Timeline",
+        charts: "Charts",
+        lifeProgress: "Life Progress",
+        currentAge: "Current Age",
+        totalEvents: "Total Events Recorded",
+        birthday: "Birthday",
+        eventAnalysis: "Event Analysis",
+        noEventsRecorded: "No events recorded yet. Add events via the sidebar or by shift-clicking weeks.",
+        eventTypeDistribution: "Event Type Distribution",
+        recentEvents: "Recent Events (Max 10)",
+        noEventsFound: "No events found",
+        eventStatisticsSummary: "Event Statistics Summary",
+        lifePhases: "Life Phases",
+        lifeMilestones: "Life Milestones",
+        milestone: "Milestone",
+        age: "Age",
+        date: "Date",
+        status: "Status",
+        weekCompletionEvents: "Week Completion & Events",
+        noEventsAdded: "No events added yet",
+        addEventsForCharts: "Add events to see charts and visualizations",
+        eventDistributionByType: "Event Distribution by Type",
+        seasonalPatterns: "Seasonal Patterns",
+        futurePlanningHorizon: "Future Planning Horizon",
+        noFutureEvents: "No future events planned yet",
+        eventDistributionByMonth: "Event Distribution by Month",
+        loadingSnippets: "Loading snippets..."
+    },
+    // Settings
+    settings: {
+        title: "Chronica Timeline Settings",
+        subtitle: "Customize your life timeline visualization.",
+        coreSetup: "Core Setup",
+        foldersNoteNaming: "Folders & Note Naming",
+        fileNamingTemplates: "File Naming Templates",
+        fileNamingHelp: "Customize how Chronica names your week and event note files.",
+        appearance: "Appearance",
+        markerVisibility: "Marker Visibility",
+        eventTypes: "Event Types",
+        weekFillingOptions: "Week Filling Options",
+        otherDisplayOptions: "Other Display Options",
+        statisticsPanel: "Statistics Panel",
+        dataManagement: "Data Management",
+        tipsShortcuts: "Tips & Shortcuts",
+        basicNavigation: "Basic Navigation",
+        eventsPlanning: "Events & Planning"
+    },
+    // Marker settings
+    markers: {
+        title: "Timeline Marker Settings",
+        subtitle: "Choose which timeline markers are visible"
+    },
+    // Folder operations
+    folder: {
+        moveConfirmation: "Would you like to move these notes to the new folder?",
+        moveFiles: "Move Files"
+    },
+    // Notices
+    notices: {
+        initialScan: "Chronica: Performing initial event scan...",
+        scanComplete: "Chronica: Event scan complete. Views updated.",
+        rescanning: "Chronica: Re-scanning vault for events...",
+        rescanComplete: "Chronica: Event scan complete. Views refreshed."
+    },
+    // Commands
+    commands: {
+        openTimeline: "Open Chronica Timeline",
+        createWeeklyNote: "Create/Open Current Week Note",
+        rescanEvents: "Re-scan Vault for Chronica Events"
+    },
+    // Tips
+    tips: {
+        clickWeek: "• Click on any week cell to create or open its note.",
+        shiftClickEvent: "• Shift+Click on a week cell to quickly add an event for that date.",
+        hoverCells: "• Hover over cells for week number and date range.",
+        zoomControls: "• Use sidebar zoom controls or 'Fit to Screen'.",
+        addEvent: "• Use 'Add Event' button or Shift+Click.",
+        multiWeekEvents: "• Mark multi-week events using 'Date Range'.",
+        manageTypes: "• Manage custom event types (names/colors) via the button."
+    },
+    // Months
+    months: {
+        jan: "Jan",
+        feb: "Feb",
+        mar: "Mar",
+        apr: "Apr",
+        may: "May",
+        jun: "Jun",
+        jul: "Jul",
+        aug: "Aug",
+        sep: "Sep",
+        oct: "Oct",
+        nov: "Nov",
+        dec: "Dec"
+    },
+    // Default values
+    defaults: {
+        quote: "the only true luxury is time."
+    }
+};
+
+const ru = {
+    // Plugin metadata
+    pluginName: "Chronica – Жизнь в кадрах",
+    pluginDescription: "Chronica: Жизнь в кадрах — визуализируйте, навигация и размышления о вашей жизни в различных временных масштабах",
+    // Common actions
+    save: "Сохранить",
+    cancel: "Отмена",
+    edit: "Редактировать",
+    delete: "Удалить",
+    add: "Добавить",
+    create: "Создать",
+    open: "Открыть",
+    close: "Закрыть",
+    yes: "Да",
+    no: "Нет",
+    ok: "ОК",
+    // Welcome modal
+    welcome: {
+        title: "Добро пожаловать в Chronica",
+        subtitle: "Визуализируйте, навигация и размышления о вашей жизни в различных временных масштабах.",
+        getStarted: "Начнем",
+        birthdateSetup: "Для создания вашей персональной временной шкалы Chronica нужна ваша дата рождения. Давайте настроим это в первую очередь.",
+        birthdateLabel: "Ваша дата рождения:",
+        openSettings: "Открыть настройки",
+        saveBirthdate: "Сохранить дату рождения",
+        skipForNow: "Пропустить пока",
+        settingsNote: "Вы всегда можете изменить эти настройки позже, перейдя в Настройки > Chronica Timeline.",
+        folderSelection: "Выберите папки для заметок",
+        weeklyNotesFolder: "Папка для еженедельных заметок:",
+        eventNotesFolder: "Папка для заметок о событиях:",
+        folderWarning: "Пожалуйста, создайте выделенные папки в вашем хранилище перед их выбором здесь.",
+        folderNote: "Вы можете изменить эти папки позже в Настройки → Chronica: Жизнь в кадрах."
+    },
+    // Event types
+    eventTypes: {
+        majorLife: "Важные события жизни",
+        travel: "Путешествия",
+        relationship: "Отношения",
+        educationCareer: "Образование/Карьера",
+        createNew: "Создать новый тип события",
+        manage: "Управление типами событий",
+        editNote: "Редактируйте названия/цвета. Предустановленные типы нельзя удалить.",
+        addNew: "Добавить новый пользовательский тип",
+        noTypesFound: "Типы событий не найдены. Сброс к значениям по умолчанию.",
+        type: "Тип:",
+        name: "Название",
+        color: "Цвет"
+    },
+    // Event modal
+    eventModal: {
+        selectDates: "Выберите дату(ы)",
+        singleDate: "Одна дата",
+        dateRange: "Диапазон дат",
+        dateHelp: "Выберите дату(ы). Система автоматически определяет недели.",
+        eventName: "Название события",
+        eventDescription: "Описание события",
+        startDate: "Дата начала",
+        endDate: "Дата окончания"
+    },
+    // Timeline view
+    timeline: {
+        title: "жизнь в кадрах",
+        loading: "Chronica инициализируется и сканирует события. Пожалуйста, подождите...",
+        loadingEvents: "Chronica: Загрузка данных событий...",
+        timelineData: "ДАННЫЕ ВРЕМЕННОЙ ШКАЛЫ",
+        addEvent: "Добавить событие",
+        manageEventTypes: "Управление типами событий",
+        visualization: "ВИЗУАЛИЗАЦИЯ",
+        fitToScreen: "Подогнать под экран",
+        displaySettings: "НАСТРОЙКИ ОТОБРАЖЕНИЯ",
+        cellShape: "Форма ячеек",
+        gridOrientation: "Ориентация сетки",
+        legend: "ЛЕГЕНДА",
+        noEventTypes: "Типы событий не определены.",
+        period: "Период (ISO):",
+        cell: "Ячейка:",
+        eventNote: "Заметка о событии:",
+        weeklyNote: "Еженедельная заметка:"
+    },
+    // Statistics panel
+    stats: {
+        title: "Статистика",
+        overview: "Обзор",
+        events: "События",
+        timeline: "Временная шкала",
+        charts: "Графики",
+        lifeProgress: "Прогресс жизни",
+        currentAge: "Текущий возраст",
+        totalEvents: "Всего записанных событий",
+        birthday: "День рождения",
+        eventAnalysis: "Анализ событий",
+        noEventsRecorded: "События еще не записаны. Добавьте события через боковую панель или Shift+клик по неделям.",
+        eventTypeDistribution: "Распределение по типам событий",
+        recentEvents: "Недавние события (Макс. 10)",
+        noEventsFound: "События не найдены",
+        eventStatisticsSummary: "Сводка статистики событий",
+        lifePhases: "Жизненные фазы",
+        lifeMilestones: "Жизненные вехи",
+        milestone: "Веха",
+        age: "Возраст",
+        date: "Дата",
+        status: "Статус",
+        weekCompletionEvents: "Завершение недель и события",
+        noEventsAdded: "События еще не добавлены",
+        addEventsForCharts: "Добавьте события для просмотра графиков и визуализаций",
+        eventDistributionByType: "Распределение событий по типам",
+        seasonalPatterns: "Сезонные паттерны",
+        futurePlanningHorizon: "Горизонт планирования будущего",
+        noFutureEvents: "Будущие события еще не запланированы",
+        eventDistributionByMonth: "Распределение событий по месяцам",
+        loadingSnippets: "Загрузка фрагментов..."
+    },
+    // Settings
+    settings: {
+        title: "Настройки Chronica Timeline",
+        subtitle: "Настройте визуализацию вашей жизненной временной шкалы.",
+        coreSetup: "Основная настройка",
+        foldersNoteNaming: "Папки и именование заметок",
+        fileNamingTemplates: "Шаблоны именования файлов",
+        fileNamingHelp: "Настройте, как Chronica называет ваши файлы еженедельных заметок и заметок о событиях.",
+        appearance: "Внешний вид",
+        markerVisibility: "Видимость маркеров",
+        eventTypes: "Типы событий",
+        weekFillingOptions: "Опции заполнения недель",
+        otherDisplayOptions: "Другие опции отображения",
+        statisticsPanel: "Панель статистики",
+        dataManagement: "Управление данными",
+        tipsShortcuts: "Советы и горячие клавиши",
+        basicNavigation: "Основная навигация",
+        eventsPlanning: "События и планирование"
+    },
+    // Marker settings
+    markers: {
+        title: "Настройки маркеров временной шкалы",
+        subtitle: "Выберите, какие маркеры временной шкалы видны"
+    },
+    // Folder operations
+    folder: {
+        moveConfirmation: "Хотите переместить эти заметки в новую папку?",
+        moveFiles: "Переместить файлы"
+    },
+    // Notices
+    notices: {
+        initialScan: "Chronica: Выполняется первоначальное сканирование событий...",
+        scanComplete: "Chronica: Сканирование событий завершено. Представления обновлены.",
+        rescanning: "Chronica: Повторное сканирование хранилища для событий...",
+        rescanComplete: "Chronica: Сканирование событий завершено. Представления обновлены."
+    },
+    // Commands
+    commands: {
+        openTimeline: "Открыть Chronica Timeline",
+        createWeeklyNote: "Создать/Открыть заметку текущей недели",
+        rescanEvents: "Повторно сканировать хранилище для событий Chronica"
+    },
+    // Tips
+    tips: {
+        clickWeek: "• Кликните на любую ячейку недели, чтобы создать или открыть ее заметку.",
+        shiftClickEvent: "• Shift+клик на ячейку недели для быстрого добавления события на эту дату.",
+        hoverCells: "• Наведите курсор на ячейки для номера недели и диапазона дат.",
+        zoomControls: "• Используйте элементы управления масштабированием в боковой панели или 'Подогнать под экран'.",
+        addEvent: "• Используйте кнопку 'Добавить событие' или Shift+клик.",
+        multiWeekEvents: "• Отмечайте многонедельные события, используя 'Диапазон дат'.",
+        manageTypes: "• Управляйте пользовательскими типами событий (названия/цвета) через кнопку."
+    },
+    // Months
+    months: {
+        jan: "Янв",
+        feb: "Фев",
+        mar: "Мар",
+        apr: "Апр",
+        may: "Май",
+        jun: "Июн",
+        jul: "Июл",
+        aug: "Авг",
+        sep: "Сен",
+        oct: "Окт",
+        nov: "Ноя",
+        dec: "Дек"
+    },
+    // Default values
+    defaults: {
+        quote: "единственная настоящая роскошь — это время."
+    }
+};
+
+const translations = {
+    en,
+    ru
+};
+class I18nManager {
+    currentLanguage = 'en';
+    constructor(language) {
+        if (language && translations[language]) {
+            this.currentLanguage = language;
+        }
+    }
+    setLanguage(language) {
+        if (translations[language]) {
+            this.currentLanguage = language;
+        }
+    }
+    getLanguage() {
+        return this.currentLanguage;
+    }
+    t() {
+        return translations[this.currentLanguage];
+    }
+    getAvailableLanguages() {
+        return Object.keys(translations);
+    }
+    getMonthName(monthIndex) {
+        const monthNames = [
+            this.t().months.jan,
+            this.t().months.feb,
+            this.t().months.mar,
+            this.t().months.apr,
+            this.t().months.may,
+            this.t().months.jun,
+            this.t().months.jul,
+            this.t().months.aug,
+            this.t().months.sep,
+            this.t().months.oct,
+            this.t().months.nov,
+            this.t().months.dec
+        ];
+        return monthNames[monthIndex] || monthNames[0];
+    }
+}
+// Default instance
+new I18nManager();
+
 /**
  * Chronica - Life in Frames Plugin for Obsidian
  *
@@ -62,6 +478,7 @@ const DEFAULT_SETTINGS = {
     // --- Core Settings ---
     birthday: "2000-01-01",
     lifespan: 90,
+    language: "en",
     settingsVersion: 1,
     // --- Unified Event Data ---
     eventTypes: [
@@ -261,6 +678,7 @@ class ChornicaFolderSelectionModal extends obsidian.Modal {
 class ChornicaTimelinePlugin extends obsidian.Plugin {
     /** Plugin settings */
     settings = DEFAULT_SETTINGS;
+    i18nManager = new I18nManager();
     isPluginFullyLoaded = false; // Flag to fix race conditions
     // ADDED: New public method for views to check readiness
     isReady() {
@@ -272,6 +690,8 @@ class ChornicaTimelinePlugin extends obsidian.Plugin {
     async onload() {
         this.isPluginFullyLoaded = false;
         await this.loadSettings();
+        // Initialize i18n manager with user's language setting
+        this.i18nManager.setLanguage(this.settings.language);
         if (this.settings.manualFillColor) {
             document.documentElement.style.setProperty("--manual-fill-color", this.settings.manualFillColor);
         }
@@ -283,10 +703,10 @@ class ChornicaTimelinePlugin extends obsidian.Plugin {
         obsidian.addIcon("chronica-icon", Chornica_ICON);
         this.registerView(TIMELINE_VIEW_TYPE, (leaf) => new ChornicaTimelineView(leaf, this));
         this.app.workspace.onLayoutReady(async () => {
-            new obsidian.Notice("Chronica: Performing initial event scan...");
+            new obsidian.Notice(this.i18nManager.t().notices.initialScan);
             await this.scanVaultForEvents();
             this.isPluginFullyLoaded = true;
-            new obsidian.Notice("Chronica: Event scan complete. Views updated.");
+            new obsidian.Notice(this.i18nManager.t().notices.scanComplete);
             this.refreshAllViews();
             if (this.checkAndAutoFill()) {
                 this.refreshAllViews();
@@ -320,24 +740,24 @@ class ChornicaTimelinePlugin extends obsidian.Plugin {
             await this.handleFileDelete(file);
             this.refreshAllViewsAfterOperation();
         }));
-        this.addRibbonIcon("chronica-icon", "Open Chronica Timeline", () => this.activateView());
+        this.addRibbonIcon("chronica-icon", this.i18nManager.t().commands.openTimeline, () => this.activateView());
         this.addCommand({
             id: "open-chronica-timeline",
-            name: "Open Chronica Timeline",
+            name: this.i18nManager.t().commands.openTimeline,
             callback: () => this.activateView(),
         });
         this.addCommand({
             id: "create-weekly-note",
-            name: "Create/Open Current Week Note",
+            name: this.i18nManager.t().commands.createWeeklyNote,
             callback: () => this.createOrOpenWeekNote(),
         });
         this.addCommand({
             id: "rescan-chronica-events",
-            name: "Re-scan Vault for Chronica Events",
+            name: this.i18nManager.t().commands.rescanEvents,
             callback: async () => {
-                new obsidian.Notice("Chronica: Re-scanning vault for events...");
+                new obsidian.Notice(this.i18nManager.t().notices.rescanning);
                 await this.scanVaultForEvents(); // scanVaultForEvents now calls refreshAllViews itself
-                new obsidian.Notice("Chronica: Event scan complete. Views refreshed.");
+                new obsidian.Notice(this.i18nManager.t().notices.rescanComplete);
             },
         });
         this.addSettingTab(new ChornicaSettingTab(this.app, this));
@@ -6412,12 +6832,12 @@ class ChornicaSettingTab extends obsidian.PluginSettingTab {
     display() {
         const { containerEl } = this;
         containerEl.empty();
-        containerEl.createEl("h1", { text: "Chronica Timeline Settings" });
+        containerEl.createEl("h1", { text: this.plugin.i18nManager.t().settings.title });
         containerEl.createEl("p", {
-            text: "Customize your life timeline visualization.",
+            text: this.plugin.i18nManager.t().settings.subtitle,
         });
         // --- Core Settings ---
-        containerEl.createEl("h3", { text: "Core Setup" });
+        containerEl.createEl("h3", { text: this.plugin.i18nManager.t().settings.coreSetup });
         // Birthday setting
         new obsidian.Setting(containerEl)
             .setName("Birthday")
@@ -6450,8 +6870,22 @@ class ChornicaSettingTab extends obsidian.PluginSettingTab {
             await this.plugin.saveSettings();
             this.refreshAllViews();
         }));
+        // Language setting
+        new obsidian.Setting(containerEl)
+            .setName("Language")
+            .setDesc("Interface language for the plugin.")
+            .addDropdown((dropdown) => dropdown
+            .addOption("en", "English")
+            .addOption("ru", "Русский")
+            .setValue(this.plugin.settings.language)
+            .onChange(async (value) => {
+            this.plugin.settings.language = value;
+            this.plugin.i18nManager.setLanguage(value);
+            await this.plugin.saveSettings();
+            this.refreshAllViews();
+        }));
         // --- Folders & Notes ---
-        containerEl.createEl("h3", { text: "Folders & Note Naming" });
+        containerEl.createEl("h3", { text: this.plugin.i18nManager.t().settings.foldersNoteNaming });
         // Notes folder setting (Main / Weekly)
         new obsidian.Setting(containerEl)
             .setName("Weekly Notes Folder")

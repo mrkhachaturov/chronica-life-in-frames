@@ -23,6 +23,8 @@ import {
   AbstractInputSuggest,
 } from "obsidian";
 
+import { I18nManager, i18n } from "./i18n";
+
 // -----------------------------------------------------------------------
 // CONSTANTS & TYPE DEFINITIONS
 // -----------------------------------------------------------------------
@@ -69,6 +71,8 @@ interface ChornicaSettings {
   lifespan: number;
   /** Default view mode (remains, but might be less relevant later) */
   defaultView: string;
+  /** Interface language */
+  language: "en" | "ru";
   /** Cell shape variants */
   cellShape: "square" | "circle" | "diamond";
   /** Grid orientation - landscape (default) or portrait */
@@ -241,6 +245,7 @@ const DEFAULT_SETTINGS: ChornicaSettings = {
   // --- Core Settings ---
   birthday: "2000-01-01",
   lifespan: 90,
+  language: "en",
   settingsVersion: 1, // Start versioning settings
 
   // --- Unified Event Data ---
@@ -468,6 +473,7 @@ class ChornicaFolderSelectionModal extends Modal {
 export default class ChornicaTimelinePlugin extends Plugin {
   /** Plugin settings */
   settings: ChornicaSettings = DEFAULT_SETTINGS;
+  i18nManager: I18nManager = new I18nManager();
 
   private isPluginFullyLoaded: boolean = false; // Flag to fix race conditions
 
@@ -483,6 +489,9 @@ export default class ChornicaTimelinePlugin extends Plugin {
     this.isPluginFullyLoaded = false;
 
     await this.loadSettings();
+
+    // Initialize i18n manager with user's language setting
+    this.i18nManager.setLanguage(this.settings.language);
 
     if (this.settings.manualFillColor) {
       document.documentElement.style.setProperty(
@@ -505,11 +514,11 @@ export default class ChornicaTimelinePlugin extends Plugin {
     );
 
     this.app.workspace.onLayoutReady(async () => {
-      new Notice("Chronica: Performing initial event scan...");
+      new Notice(this.i18nManager.t().notices.initialScan);
       await this.scanVaultForEvents();
 
       this.isPluginFullyLoaded = true;
-      new Notice("Chronica: Event scan complete. Views updated.");
+      new Notice(this.i18nManager.t().notices.scanComplete);
 
       this.refreshAllViews();
 
@@ -550,26 +559,26 @@ export default class ChornicaTimelinePlugin extends Plugin {
       })
     );
 
-    this.addRibbonIcon("chronica-icon", "Open Chronica Timeline", () =>
+    this.addRibbonIcon("chronica-icon", this.i18nManager.t().commands.openTimeline, () =>
       this.activateView()
     );
     this.addCommand({
       id: "open-chronica-timeline",
-      name: "Open Chronica Timeline",
+      name: this.i18nManager.t().commands.openTimeline,
       callback: () => this.activateView(),
     });
     this.addCommand({
       id: "create-weekly-note",
-      name: "Create/Open Current Week Note",
+      name: this.i18nManager.t().commands.createWeeklyNote,
       callback: () => this.createOrOpenWeekNote(),
     });
     this.addCommand({
       id: "rescan-chronica-events",
-      name: "Re-scan Vault for Chronica Events",
+      name: this.i18nManager.t().commands.rescanEvents,
       callback: async () => {
-        new Notice("Chronica: Re-scanning vault for events...");
+        new Notice(this.i18nManager.t().notices.rescanning);
         await this.scanVaultForEvents(); // scanVaultForEvents now calls refreshAllViews itself
-        new Notice("Chronica: Event scan complete. Views refreshed.");
+        new Notice(this.i18nManager.t().notices.rescanComplete);
       },
     });
     this.addSettingTab(new ChornicaSettingTab(this.app, this));
@@ -8148,13 +8157,13 @@ class ChornicaSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h1", { text: "Chronica Timeline Settings" });
+    containerEl.createEl("h1", { text: this.plugin.i18nManager.t().settings.title });
     containerEl.createEl("p", {
-      text: "Customize your life timeline visualization.",
+      text: this.plugin.i18nManager.t().settings.subtitle,
     });
 
     // --- Core Settings ---
-    containerEl.createEl("h3", { text: "Core Setup" });
+    containerEl.createEl("h3", { text: this.plugin.i18nManager.t().settings.coreSetup });
 
     // Birthday setting
     new Setting(containerEl)
@@ -8193,8 +8202,25 @@ class ChornicaSettingTab extends PluginSettingTab {
           })
       );
 
+    // Language setting
+    new Setting(containerEl)
+      .setName("Language")
+      .setDesc("Interface language for the plugin.")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("en", "English")
+          .addOption("ru", "Русский")
+          .setValue(this.plugin.settings.language)
+          .onChange(async (value) => {
+            this.plugin.settings.language = value as "en" | "ru";
+            this.plugin.i18nManager.setLanguage(value as "en" | "ru");
+            await this.plugin.saveSettings();
+            this.refreshAllViews();
+          })
+      );
+
     // --- Folders & Notes ---
-    containerEl.createEl("h3", { text: "Folders & Note Naming" });
+    containerEl.createEl("h3", { text: this.plugin.i18nManager.t().settings.foldersNoteNaming });
 
     // Notes folder setting (Main / Weekly)
     new Setting(containerEl)
