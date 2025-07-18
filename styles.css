@@ -212,6 +212,39 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   font-weight: normal;
   text-align: center;
+  /* Dynamic font sizing for text overflow */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+/* Dynamic font sizing for buttons with long text */
+.chronica-btn[data-text-length="long"] {
+  font-size: 14px;
+}
+
+.chronica-btn[data-text-length="very-long"] {
+  font-size: 12px;
+  padding: 8px 12px;
+}
+
+/* Responsive font sizing for different screen sizes */
+@media (max-width: 768px) {
+  .chronica-btn {
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+  
+  .chronica-btn[data-text-length="long"] {
+    font-size: 12px;
+  }
+  
+  .chronica-btn[data-text-length="very-long"] {
+    font-size: 10px;
+    padding: 6px 10px;
+  }
 }
 
 .chronica-btn:hover {

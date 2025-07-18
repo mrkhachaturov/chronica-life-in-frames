@@ -32,6 +32,9 @@ import { I18nManager, i18n } from "./i18n";
 /** Unique identifier for the timeline view */
 const TIMELINE_VIEW_TYPE = "chronica-timeline-view";
 
+// View type constants for pinnable views
+const CHRONICA_OVERVIEW_VIEW_TYPE = 'chronica-overview';
+
 /** Interface for a single event type definition */
 interface ChronicaEventType {
   /** Stable, unique identifier (e.g., 'preset_major_life', 'custom_1678886400000') */
@@ -249,27 +252,7 @@ const DEFAULT_SETTINGS: ChornicaSettings = {
   settingsVersion: 1, // Start versioning settings
 
   // --- Unified Event Data ---
-  eventTypes: [
-    {
-      id: "preset_major_life",
-      name: "Major Life",
-      color: "#4CAF50",
-      isPreset: true,
-    },
-    { id: "preset_travel", name: "Travel", color: "#2196F3", isPreset: true },
-    {
-      id: "preset_relationship",
-      name: "Relationship",
-      color: "#E91E63",
-      isPreset: true,
-    },
-    {
-      id: "preset_education_career",
-      name: "Education/Career",
-      color: "#D2B55B",
-      isPreset: true,
-    },
-  ],
+  eventTypes: [], // Will be initialized with translated names
   events: [], // Start with no events
 
   // --- Display & Appearance ---
@@ -328,6 +311,36 @@ const Chornica_ICON = `<svg viewBox="0 0 100 100" width="100" height="100" xmlns
     <circle cx="50" cy="50" r="5" fill="currentColor"/>
   </svg>`;
 
+/** Function to get default event types with translated names */
+function getDefaultEventTypes(i18nManager: I18nManager): ChronicaEventType[] {
+  return [
+    {
+      id: "preset_major_life",
+      name: i18nManager.t().eventTypes.majorLife,
+      color: "#4CAF50",
+      isPreset: true,
+    },
+    { 
+      id: "preset_travel", 
+      name: i18nManager.t().eventTypes.travel, 
+      color: "#2196F3", 
+      isPreset: true 
+    },
+    {
+      id: "preset_relationship",
+      name: i18nManager.t().eventTypes.relationship,
+      color: "#E91E63",
+      isPreset: true,
+    },
+    {
+      id: "preset_education_career",
+      name: i18nManager.t().eventTypes.educationCareer,
+      color: "#D2B55B",
+      isPreset: true,
+    },
+  ];
+}
+
 // Gap between decades (larger than regular gap)
 const DECADE_GAP = 6; // px
 
@@ -356,7 +369,7 @@ class ChornicaFolderSelectionModal extends Modal {
   }
 
   onOpen(): void {
-    this.titleEl.setText("Select Notes Folders");
+    this.titleEl.setText(this.plugin.i18nManager.t().welcome.selectNotesFolders);
 
     const container = this.contentEl.createDiv({
       cls: "chronica-welcome-setup",
@@ -366,7 +379,7 @@ class ChornicaFolderSelectionModal extends Modal {
       cls: "chronica-welcome-birthdate",
     });
     weekSection.createEl("label", {
-      text: "Weekly Notes Folder:",
+      text: this.plugin.i18nManager.t().welcome.weeklyNotesFolderLabel,
       attr: { for: "chronica-week-folder-input" },
       cls: "chronica-welcome-label",
     });
@@ -375,7 +388,7 @@ class ChornicaFolderSelectionModal extends Modal {
         type: "text",
         id: "chronica-week-folder-input",
         value: this.plugin.settings.notesFolder,
-        placeholder: "e.g. Weekly Notes",
+        placeholder: this.plugin.i18nManager.t().welcome.weeklyNotesPlaceholder,
       },
       cls: "chronica-welcome-input",
     });
@@ -388,7 +401,7 @@ class ChornicaFolderSelectionModal extends Modal {
       cls: "chronica-welcome-birthdate",
     });
     eventSection.createEl("label", {
-      text: "Event Notes Folder:",
+      text: this.plugin.i18nManager.t().welcome.eventNotesFolderLabel,
       attr: { for: "chronica-event-folder-input" },
       cls: "chronica-welcome-label",
     });
@@ -397,7 +410,7 @@ class ChornicaFolderSelectionModal extends Modal {
         type: "text",
         id: "chronica-event-folder-input",
         value: this.plugin.settings.eventNotesFolder,
-        placeholder: "e.g. Event Notes",
+        placeholder: this.plugin.i18nManager.t().welcome.eventNotesPlaceholder,
       },
       cls: "chronica-welcome-input",
     });
@@ -408,11 +421,11 @@ class ChornicaFolderSelectionModal extends Modal {
 
     const buttons = container.createDiv({ cls: "chronica-welcome-buttons" });
     const saveBtn = buttons.createEl("button", {
-      text: "Save",
+      text: this.plugin.i18nManager.t().save,
       cls: "chronica-welcome-button chronica-welcome-accent-button",
     });
     const cancelBtn = buttons.createEl("button", {
-      text: "Cancel",
+      text: this.plugin.i18nManager.t().cancel,
       cls: "chronica-welcome-button",
     });
 
@@ -421,13 +434,13 @@ class ChornicaFolderSelectionModal extends Modal {
       cls: "chronica-welcome-footer",
     });
     footerDiv.createEl("strong", {
-      text: "Please create your dedicated folders in your vault before selecting them here.",
+      text: this.plugin.i18nManager.t().welcome.createFoldersWarning,
       cls: "chronica-modal-emphasis-text", // MODIFIED LINE: Replaced attr: { style: ... } with cls
     });
 
     container.createEl("div", {
       cls: "chronica-welcome-footer",
-      text: "You can change these folders later under Settings → Chronica: Life in Frames. ",
+      text: this.plugin.i18nManager.t().welcome.changeFoldersLater,
     });
     saveBtn.addEventListener("click", () => {
       const weekVal = (weekInput as HTMLInputElement).value.trim();
@@ -483,6 +496,44 @@ export default class ChornicaTimelinePlugin extends Plugin {
   }
 
   /**
+   * Update event type names with current language translations
+   */
+  public updateEventTypeNames(): void {
+    const defaultTypes = getDefaultEventTypes(this.i18nManager);
+    
+    // Update preset event type names with current language
+    this.settings.eventTypes.forEach(eventType => {
+      if (eventType.isPreset) {
+        const defaultType = defaultTypes.find(dt => dt.id === eventType.id);
+        if (defaultType) {
+          eventType.name = defaultType.name;
+        }
+      }
+    });
+  }
+
+  /**
+   * Apply dynamic font sizing to buttons based on text length
+   */
+  public applyDynamicButtonSizing(): void {
+    const buttons = document.querySelectorAll('.chronica-btn');
+    buttons.forEach(button => {
+      const text = button.textContent || '';
+      const textLength = text.length;
+      
+      // Remove existing data attributes
+      button.removeAttribute('data-text-length');
+      
+      // Apply appropriate sizing based on text length
+      if (textLength > 25) {
+        button.setAttribute('data-text-length', 'very-long');
+      } else if (textLength > 15) {
+        button.setAttribute('data-text-length', 'long');
+      }
+    });
+  }
+
+  /**
    * Plugin initialization on load
    */
   async onload(): Promise<void> {
@@ -492,6 +543,14 @@ export default class ChornicaTimelinePlugin extends Plugin {
 
     // Initialize i18n manager with user's language setting
     this.i18nManager.setLanguage(this.settings.language);
+
+    // Initialize default event types with translated names if not already set
+    if (this.settings.eventTypes.length === 0) {
+      this.settings.eventTypes = getDefaultEventTypes(this.i18nManager);
+    } else {
+      // Update existing event type names with current language
+      this.updateEventTypeNames();
+    }
 
     if (this.settings.manualFillColor) {
       document.documentElement.style.setProperty(
@@ -511,6 +570,12 @@ export default class ChornicaTimelinePlugin extends Plugin {
     this.registerView(
       TIMELINE_VIEW_TYPE,
       (leaf) => new ChornicaTimelineView(leaf, this)
+    );
+
+    // Register pinnable views
+    this.registerView(
+      CHRONICA_OVERVIEW_VIEW_TYPE,
+      (leaf) => new ChronicaOverviewView(leaf, this)
     );
 
     this.app.workspace.onLayoutReady(async () => {
@@ -580,6 +645,13 @@ export default class ChornicaTimelinePlugin extends Plugin {
         await this.scanVaultForEvents(); // scanVaultForEvents now calls refreshAllViews itself
         new Notice(this.i18nManager.t().notices.rescanComplete);
       },
+    });
+
+    // Commands for pinnable views
+    this.addCommand({
+      id: "open-chronica-overview",
+      name: `Open ${this.i18nManager.t().stats.overview}`,
+      callback: () => this.activateView(CHRONICA_OVERVIEW_VIEW_TYPE),
     });
     this.addSettingTab(new ChornicaSettingTab(this.app, this));
 
@@ -814,7 +886,7 @@ export default class ChornicaTimelinePlugin extends Plugin {
         }
 
         if (!weekKey) {
-          let normalizedBasename = file.basename.replace(/--W/g, "-W");
+          const normalizedBasename = file.basename.replace(/--W/g, "-W");
           const rangeMatch = normalizedBasename.match(
             /(\d{4}-W\d{2})_to_(\d{4}-W\d{2})/
           );
@@ -855,7 +927,9 @@ export default class ChornicaTimelinePlugin extends Plugin {
           }
         }
         scannedEvents.push(newEvent);
-      } catch (error) {}
+      } catch (error) {
+        // Error handling for event scanning
+      }
     }
 
     this.settings.events = scannedEvents;
@@ -872,6 +946,38 @@ export default class ChornicaTimelinePlugin extends Plugin {
     this.app.workspace.getLeavesOfType(TIMELINE_VIEW_TYPE).forEach((leaf) => {
       (leaf.view as ChornicaTimelineView).renderView();
     });
+
+    // Refresh the overview view
+    this.app.workspace.getLeavesOfType(CHRONICA_OVERVIEW_VIEW_TYPE).forEach((leaf) => {
+      const view = leaf.view as ChronicaOverviewView;
+      if (view && view.refreshView) {
+        view.refreshView();
+      }
+    });
+
+    // Force Obsidian to refresh the workspace to update tab titles
+    // This ensures that getDisplayText() is re-evaluated for all views
+    this.app.workspace.trigger("layout-change");
+    
+    // Force tab titles to update by refreshing view states
+    // This triggers Obsidian to re-evaluate the getDisplayText() method
+    this.app.workspace.getLeavesOfType(TIMELINE_VIEW_TYPE).forEach(async (leaf) => {
+      const currentState = leaf.getViewState();
+      await leaf.setViewState(currentState);
+    });
+    
+    this.app.workspace.getLeavesOfType(CHRONICA_OVERVIEW_VIEW_TYPE).forEach(async (leaf) => {
+      const currentState = leaf.getViewState();
+      await leaf.setViewState(currentState);
+    });
+    
+    // Force application title bar to update by triggering a workspace refresh
+    // This should cause Obsidian to re-evaluate the plugin name for the title bar
+    setTimeout(() => {
+      this.app.workspace.trigger("layout-change");
+      // Force a full workspace refresh to update the application title
+      this.app.workspace.requestSaveLayout();
+    }, 50);
   }
 
   /**
@@ -1128,7 +1234,7 @@ export default class ChornicaTimelinePlugin extends Plugin {
    * Load settings from storage and perform migration if necessary.
    */
   async loadSettings(): Promise<void> {
-    let loadedData = await this.loadData();
+    const loadedData = await this.loadData();
 
     // Check if migration is needed (settingsVersion < 1 or old fields exist)
     const currentSettingsVersion = 1; // Target version for this migration
@@ -1229,7 +1335,7 @@ export default class ChornicaTimelinePlugin extends Plugin {
                 (et) => et.name.toLowerCase() === oldType.name.toLowerCase()
               );
               let finalId = "";
-              let finalName = oldType.name;
+              const finalName = oldType.name;
 
               if (existingPreset) {
                 // Name collision with a preset, map to the preset ID
@@ -1428,19 +1534,19 @@ export default class ChornicaTimelinePlugin extends Plugin {
   }
 
   /**
-   * Show or focus the timeline view
+   * Show or focus a view
    */
-  async activateView(): Promise<void> {
+  async activateView(viewType: string = TIMELINE_VIEW_TYPE): Promise<void> {
     const { workspace } = this.app;
 
     // Check if view is already open
-    let leaf = workspace.getLeavesOfType(TIMELINE_VIEW_TYPE)[0];
+    let leaf = workspace.getLeavesOfType(viewType)[0];
 
     if (!leaf) {
       // Create a new leaf in the right sidebar
       leaf = workspace.getLeaf("split", "vertical");
       await leaf.setViewState({
-        type: TIMELINE_VIEW_TYPE,
+        type: viewType,
         active: true,
       });
     }
@@ -1939,21 +2045,21 @@ export default class ChornicaTimelinePlugin extends Plugin {
 
     // Format the dates
     const formatDate = (date: Date): string => {
-      const months = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
+      const monthNames = [
+        this.i18nManager.t().months.jan,
+        this.i18nManager.t().months.feb,
+        this.i18nManager.t().months.mar,
+        this.i18nManager.t().months.apr,
+        this.i18nManager.t().months.may,
+        this.i18nManager.t().months.jun,
+        this.i18nManager.t().months.jul,
+        this.i18nManager.t().months.aug,
+        this.i18nManager.t().months.sep,
+        this.i18nManager.t().months.oct,
+        this.i18nManager.t().months.nov,
+        this.i18nManager.t().months.dec,
       ];
-      return `${months[date.getMonth()]} ${date.getDate()}`;
+      return `${monthNames[date.getMonth()]} ${date.getDate()}`;
     };
 
     return `${formatDate(firstDayOfWeek)} - ${formatDate(lastDayOfWeek)}`;
@@ -2169,7 +2275,7 @@ export default class ChornicaTimelinePlugin extends Plugin {
     const fullPath = this.getFullPath(fileName);
 
     // Check if file exists
-    let file = this.app.vault.getAbstractFileByPath(fullPath);
+    const file = this.app.vault.getAbstractFileByPath(fullPath);
     let content = "";
 
     if (file instanceof TFile) {
@@ -2213,7 +2319,9 @@ export default class ChornicaTimelinePlugin extends Plugin {
           if (!folderExists) {
             await this.app.vault.createFolder(this.settings.notesFolder);
           }
-        } catch (err) {}
+        } catch (err) {
+          // Error handling for folder creation
+        }
       }
 
       // Create file
@@ -2241,7 +2349,7 @@ export default class ChornicaTimelinePlugin extends Plugin {
     Object.entries(metadata).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== "") {
         // If value contains special characters, wrap in quotes
-        const needsQuotes = /[:#\[\]{}|>*&!%@,]/.test(String(value));
+        const needsQuotes = /[:#[\]{}|>*&!%@,]/.test(String(value));
         const formattedValue = needsQuotes ? `"${value}"` : value;
         frontmatter += `${key}: ${formattedValue}\n`;
       }
@@ -2401,6 +2509,7 @@ export default class ChornicaTimelinePlugin extends Plugin {
       this.refreshAllViews();
       new Notice(`Cleaned ${invalidRemovedCount} invalid event link(s).`);
     } else {
+      // No invalid events to clean
     }
   }
 }
@@ -2778,12 +2887,16 @@ class ChornicaEventModal extends Modal {
           this.selectedWeekKey = this.plugin.getWeekKeyFromDate(
             new Date(this.startDateInput.value)
           );
-        } catch {}
+        } catch {
+          // Invalid date format, will be handled by validation
+        }
         try {
           this.selectedEndWeekKey = this.plugin.getWeekKeyFromDate(
             new Date(this.endDateInput.value)
           );
-        } catch {}
+        } catch {
+          // Invalid date format, will be handled by validation
+        }
         validateDateRange(); // This should also remain
       } else {
         singleDateRadio.checked = true;
@@ -2797,7 +2910,9 @@ class ChornicaEventModal extends Modal {
             this.selectedWeekKey = this.plugin.getWeekKeyFromDate(
               new Date(this.singleDateInput.value)
             );
-          } catch {}
+          } catch {
+            // Invalid date format, will be handled by validation
+          }
         }
         this.selectedEndWeekKey = ""; // This should remain
         rangeValidationMessageEl.classList.add("hidden");
@@ -3660,7 +3775,7 @@ class ManageEventTypesModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("chronica-manage-types-modal");
-    contentEl.createEl("h2", { text: "Manage Event Types" });
+    contentEl.createEl("h2", { text: this.plugin.i18nManager.t().settings.manageEventTypes });
     contentEl.createEl("h3", { text: "Event Types" });
     contentEl.createEl("p", {
       text: "Edit names/colors. Presets cannot be deleted.",
@@ -4377,7 +4492,7 @@ class ChornicaTimelineView extends ItemView {
    * Get display name for the view
    */
   getDisplayText(): string {
-    return "Chronica - Life in Frames";
+    return this.plugin.i18nManager.t().pluginName;
   }
 
   /**
@@ -4470,7 +4585,7 @@ class ChornicaTimelineView extends ItemView {
     });
     sidebarHeader.createEl("div", {
       cls: "chronica-title",
-      text: "life in frames",
+      text: this.plugin.i18nManager.t().timeline.title,
     });
     const sidebarToggle = sidebarHeader.createEl("button", {
       cls: "chronica-sidebar-toggle",
@@ -4511,21 +4626,21 @@ class ChornicaTimelineView extends ItemView {
       cls: "chronica-sidebar-section",
     });
     dataSection.createEl("h3", {
-      text: "TIMELINE DATA",
+      text: this.plugin.i18nManager.t().timeline.timelineData,
       cls: "section-header",
     });
     const dataContainer = dataSection.createEl("div", {
       cls: "chronica-controls",
     });
     const planEventBtn = dataContainer.createEl("button", {
-      text: "Add Event",
+      text: this.plugin.i18nManager.t().timeline.addEvent,
       cls: "chronica-btn chronica-btn-primary",
     });
     planEventBtn.addEventListener("click", () => {
       this.showAddEventModal();
     });
     const manageTypesBtn = dataContainer.createEl("button", {
-      text: "Manage Event Types",
+      text: this.plugin.i18nManager.t().timeline.manageEventTypes,
       cls: "chronica-btn chronica-btn-primary",
     });
     manageTypesBtn.addEventListener("click", () => {
@@ -4537,7 +4652,7 @@ class ChornicaTimelineView extends ItemView {
       cls: "chronica-sidebar-section",
     });
     viewSection.createEl("h3", {
-      text: "VISUALIZATION",
+      text: this.plugin.i18nManager.t().timeline.visualization,
       cls: "section-header",
     });
     const viewContainer = viewSection.createEl("div", {
@@ -4586,7 +4701,7 @@ class ChornicaTimelineView extends ItemView {
     });
     const fitToScreenBtn = viewContainer.createEl("button", {
       cls: "chronica-btn chronica-fit-to-screen",
-      text: "Fit to Screen",
+      text: this.plugin.i18nManager.t().timeline.fitToScreen,
       attr: { title: "Automatically adjust zoom to fit entire grid on screen" },
     });
     fitToScreenBtn.addEventListener("click", () => {
@@ -4598,7 +4713,7 @@ class ChornicaTimelineView extends ItemView {
       cls: "chronica-sidebar-section",
     });
     displaySection.createEl("h3", {
-      text: "DISPLAY SETTINGS",
+      text: this.plugin.i18nManager.t().timeline.displaySettings,
       cls: "section-header",
     });
     const displayContainer = displaySection.createEl("div", {
@@ -4607,7 +4722,7 @@ class ChornicaTimelineView extends ItemView {
     // (Keep Cell Shape and Grid Orientation controls - unchanged)
     displayContainer.createEl("h4", {
       cls: "subsection-header",
-      text: "Cell Shape",
+      text: this.plugin.i18nManager.t().timeline.cellShape,
     });
     const shapeSelect = displayContainer.createEl("select", {
       cls: "chronica-select chronica-dropdown",
@@ -4615,7 +4730,7 @@ class ChornicaTimelineView extends ItemView {
     ["square", "circle", "diamond"].forEach((opt) => {
       const option = shapeSelect.createEl("option", {
         attr: { value: opt },
-        text: opt.charAt(0).toUpperCase() + opt.slice(1),
+        text: this.plugin.i18nManager.t().settings[opt as "square" | "circle" | "diamond"],
       });
       if (this.plugin.settings.cellShape === opt) option.selected = true;
     });
@@ -4626,14 +4741,14 @@ class ChornicaTimelineView extends ItemView {
     });
     displayContainer.createEl("h4", {
       cls: "subsection-header",
-      text: "Grid Orientation",
+      text: this.plugin.i18nManager.t().timeline.gridOrientation,
     });
     const orientationBtn = displayContainer.createEl("button", {
       cls: "chronica-btn chronica-orientation-button",
       text:
         this.plugin.settings.gridOrientation === "landscape"
-          ? "Switch to Portrait"
-          : "Switch to Landscape",
+          ? this.plugin.i18nManager.t().settings.portrait
+          : this.plugin.i18nManager.t().settings.landscape,
       attr: {
         title:
           this.plugin.settings.gridOrientation === "landscape"
@@ -4649,8 +4764,8 @@ class ChornicaTimelineView extends ItemView {
       await this.plugin.saveSettings();
       orientationBtn.textContent =
         this.plugin.settings.gridOrientation === "landscape"
-          ? "Switch to Portrait"
-          : "Switch to Landscape";
+          ? this.plugin.i18nManager.t().settings.portrait
+          : this.plugin.i18nManager.t().settings.landscape;
       orientationBtn.setAttribute(
         "title",
         this.plugin.settings.gridOrientation === "landscape"
@@ -4664,7 +4779,7 @@ class ChornicaTimelineView extends ItemView {
     const legendSection = sidebarEl.createEl("div", {
       cls: "chronica-sidebar-section",
     });
-    legendSection.createEl("h3", { text: "LEGEND", cls: "section-header" });
+    legendSection.createEl("h3", { text: this.plugin.i18nManager.t().timeline.legend, cls: "section-header" });
     const legendEl = legendSection.createEl("div", { cls: "chronica-legend" });
 
     // Add legend items for all defined event types
@@ -4684,7 +4799,7 @@ class ChornicaTimelineView extends ItemView {
       });
     } else {
       legendEl.createEl("p", {
-        text: "No event types defined.",
+        text: this.plugin.i18nManager.t().timeline.noEventTypes,
         cls: "text-muted",
       });
     }
@@ -4734,6 +4849,9 @@ class ChornicaTimelineView extends ItemView {
     const viewEl = contentAreaEl.createEl("div", { cls: "chronica-view" });
     this.renderWeeksGrid(viewEl); // Render grid
     this.renderStatsPanel(contentAreaEl); // Render stats panel (which reads new data structure internally now)
+    
+    // Apply dynamic button sizing after rendering
+    setTimeout(() => this.plugin.applyDynamicButtonSizing(), 100);
   } // End of renderView
 
   /**
@@ -5456,21 +5574,21 @@ class ChornicaTimelineView extends ItemView {
 
         // Format dates for tooltip
         const formatDate = (date: Date): string => {
-          const months = [
-            "Jan",
-            "Feb",
-            "Mar",
-            "Apr",
-            "May",
-            "Jun",
-            "Jul",
-            "Aug",
-            "Sep",
-            "Oct",
-            "Nov",
-            "Dec",
+          const monthNames = [
+            this.plugin.i18nManager.t().months.jan,
+            this.plugin.i18nManager.t().months.feb,
+            this.plugin.i18nManager.t().months.mar,
+            this.plugin.i18nManager.t().months.apr,
+            this.plugin.i18nManager.t().months.may,
+            this.plugin.i18nManager.t().months.jun,
+            this.plugin.i18nManager.t().months.jul,
+            this.plugin.i18nManager.t().months.aug,
+            this.plugin.i18nManager.t().months.sep,
+            this.plugin.i18nManager.t().months.oct,
+            this.plugin.i18nManager.t().months.nov,
+            this.plugin.i18nManager.t().months.dec,
           ];
-          return `${months[date.getMonth()]} ${date.getDate()}`;
+          return `${monthNames[date.getMonth()]} ${date.getDate()}`;
         };
         const dateRange = `${formatDate(cellStartDate)} - ${formatDate(
           cellEndDate
@@ -5646,7 +5764,7 @@ class ChornicaTimelineView extends ItemView {
               eventStartDateObj <= cellEndDateObj;
 
             let dateLineLabel = "";
-            let dateLineValue = eventActualStartDateString; // Default to showing event's own start date
+            const dateLineValue = eventActualStartDateString; // Default to showing event's own start date
 
             if (!isRangedEventWithDifferentEnd || eventStartsWithinThisCell) {
               dateLineLabel = "Event Date:";
@@ -5690,7 +5808,7 @@ class ChornicaTimelineView extends ItemView {
               if (!isCompact || !eventNameActual) {
                 // Add "Cell:" label if not compact event
                 cellInfoLine.createEl("span", {
-                  text: "Cell:",
+                  text: this.plugin.i18nManager.t().timeline.cell,
                   cls: "chronica-tooltip-label",
                 });
               }
@@ -5738,7 +5856,7 @@ class ChornicaTimelineView extends ItemView {
                 cls: "chronica-tooltip-line chronica-tooltip-notelink",
               });
               eventNoteLine.createEl("span", {
-                text: "Event Note:",
+                text: this.plugin.i18nManager.t().timeline.eventNote,
                 cls: "chronica-tooltip-label",
               });
               eventNoteLine.appendText(eventNoteFilename);
@@ -5752,7 +5870,7 @@ class ChornicaTimelineView extends ItemView {
                 cls: "chronica-tooltip-line chronica-tooltip-notelink",
               });
               weeklyNoteLine.createEl("span", {
-                text: "Weekly Note:",
+                text: this.plugin.i18nManager.t().timeline.weeklyNote,
                 cls: "chronica-tooltip-label",
               });
               weeklyNoteLine.appendText(weeklyNoteFilename);
@@ -6123,11 +6241,11 @@ class ChornicaTimelineView extends ItemView {
     setIcon(iconEl, "bar-chart-horizontal"); // Use the appropriate icon name
 
     // Create the text label separately
-    statsHandle.createSpan({ text: "Statistics" });
+    statsHandle.createSpan({ text: this.plugin.i18nManager.t().stats.title });
 
     statsHandle.setAttribute(
       "title",
-      this.isStatsOpen ? "Hide Statistics" : "Show Statistics"
+      this.isStatsOpen ? this.plugin.i18nManager.t().stats.hideStatistics : this.plugin.i18nManager.t().stats.showStatistics
     );
 
     // Create stats panel container with appropriate classes
@@ -6168,10 +6286,10 @@ class ChornicaTimelineView extends ItemView {
 
     // Define tabs
     const tabs = [
-      { id: "overview", label: "Overview" },
-      { id: "events", label: "Events" },
-      { id: "timeline", label: "Timeline" },
-      { id: "charts", label: "Charts" },
+      { id: "overview", label: this.plugin.i18nManager.t().stats.overview },
+      { id: "events", label: this.plugin.i18nManager.t().stats.events },
+      { id: "timeline", label: this.plugin.i18nManager.t().stats.timeline },
+      { id: "charts", label: this.plugin.i18nManager.t().stats.charts },
     ];
 
     // Add tab buttons
@@ -6265,7 +6383,7 @@ class ChornicaTimelineView extends ItemView {
 
       statsHandle.setAttribute(
         "title",
-        this.isStatsOpen ? "Hide Statistics" : "Show Statistics"
+        this.isStatsOpen ? this.plugin.i18nManager.t().stats.hideStatistics : this.plugin.i18nManager.t().stats.showStatistics
       );
     });
     // Setup resize functionality with simplified approach
@@ -6346,6 +6464,7 @@ class ChornicaTimelineView extends ItemView {
         ".chronica-content-area"
       );
       if (contentArea && this.isStatsOpen) {
+        // Stats panel is open, content area should be adjusted
       }
 
       // Update settings (but don't save yet to avoid performance issues)
@@ -6466,7 +6585,7 @@ class ChornicaTimelineView extends ItemView {
       .map((et) => `${et.count} ${et.name}`)
       .join(", ");
     if (!eventBreakdown) {
-      eventBreakdown = "No events added yet";
+      eventBreakdown = this.plugin.i18nManager.t().stats.noEventsAddedYet;
     }
 
     // --- Render UI ---
@@ -6483,7 +6602,7 @@ class ChornicaTimelineView extends ItemView {
     });
     lifeSummary.createEl("div", {
       cls: "chronica-stat-title",
-      text: "Life Progress",
+      text: this.plugin.i18nManager.t().stats.lifeProgress,
     });
     const progressContainer = lifeSummary.createEl("div", {
       cls: "chronica-progress-container",
@@ -6539,22 +6658,22 @@ class ChornicaTimelineView extends ItemView {
     progressFill.style.width = `${livedPercentage}%`;
     barContainer.createEl("div", {
       cls: "chronica-stat-subtitle",
-      text: `${ageInWeeks} weeks lived, ${remainingWeeks} weeks remaining`,
+      text: `${ageInWeeks} ${this.plugin.i18nManager.t().stats.weeksLived}, ${remainingWeeks} ${this.plugin.i18nManager.t().stats.weeksRemaining}`,
     });
 
     // Current age card (unchanged)
     const ageCard = overviewGrid.createEl("div", { cls: "chronica-stat-card" });
     ageCard.createEl("div", {
       cls: "chronica-stat-title",
-      text: "Current Age",
+      text: this.plugin.i18nManager.t().stats.currentAge,
     });
     ageCard.createEl("div", {
       cls: "chronica-stat-value",
-      text: `${yearsLived} years, ${remainingWeeksInYear} weeks`,
+      text: `${yearsLived} ${this.plugin.i18nManager.getRussianPlural(yearsLived, this.plugin.i18nManager.t().stats.yearsOne, this.plugin.i18nManager.t().stats.yearsFew, this.plugin.i18nManager.t().stats.yearsMany)}, ${remainingWeeksInYear} ${this.plugin.i18nManager.getRussianPlural(remainingWeeksInYear, this.plugin.i18nManager.t().stats.weeksOne, this.plugin.i18nManager.t().stats.weeksFew, this.plugin.i18nManager.t().stats.weeksMany)}`,
     });
     ageCard.createEl("div", {
       cls: "chronica-stat-subtitle",
-      text: `${decadesLived} decades + ${yearsIntoCurrentDecade} years`,
+      text: `${decadesLived} ${this.plugin.i18nManager.getRussianPlural(decadesLived, this.plugin.i18nManager.t().stats.decadesOne, this.plugin.i18nManager.t().stats.decadesFew, this.plugin.i18nManager.t().stats.decadesMany)} + ${yearsIntoCurrentDecade} ${this.plugin.i18nManager.getRussianPlural(yearsIntoCurrentDecade, this.plugin.i18nManager.t().stats.yearsOne, this.plugin.i18nManager.t().stats.yearsFew, this.plugin.i18nManager.t().stats.yearsMany)}`,
     });
 
     // Events count card (UPDATED)
@@ -6563,7 +6682,7 @@ class ChornicaTimelineView extends ItemView {
     });
     eventsCard.createEl("div", {
       cls: "chronica-stat-title",
-      text: "Total Events Recorded",
+      text: this.plugin.i18nManager.t().stats.totalEvents,
     });
     eventsCard.createEl("div", {
       cls: "chronica-stat-value",
@@ -6580,26 +6699,26 @@ class ChornicaTimelineView extends ItemView {
     });
     birthdayCard.createEl("div", {
       cls: "chronica-stat-title",
-      text: "Birthday",
+      text: this.plugin.i18nManager.t().stats.birthday,
     });
     const formatBirthday = (date: Date): string => {
       /* ... keep formatting logic ... */
-      const months = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
+      const monthNames = [
+        this.plugin.i18nManager.t().monthNames.january,
+        this.plugin.i18nManager.t().monthNames.february,
+        this.plugin.i18nManager.t().monthNames.march,
+        this.plugin.i18nManager.t().monthNames.april,
+        this.plugin.i18nManager.t().monthNames.may,
+        this.plugin.i18nManager.t().monthNames.june,
+        this.plugin.i18nManager.t().monthNames.july,
+        this.plugin.i18nManager.t().monthNames.august,
+        this.plugin.i18nManager.t().monthNames.september,
+        this.plugin.i18nManager.t().monthNames.october,
+        this.plugin.i18nManager.t().monthNames.november,
+        this.plugin.i18nManager.t().monthNames.december,
       ];
       return `${
-        months[date.getMonth()]
+        monthNames[date.getMonth()]
       } ${date.getDate()}, ${date.getFullYear()}`;
     };
     birthdayCard.createEl("div", {
@@ -6616,7 +6735,7 @@ class ChornicaTimelineView extends ItemView {
     );
     birthdayCard.createEl("div", {
       cls: "chronica-stat-subtitle",
-      text: `Next birthday in ${daysUntilBirthday} days`,
+      text: `${this.plugin.i18nManager.t().stats.nextBirthdayIn} ${daysUntilBirthday} ${this.plugin.i18nManager.t().stats.days}`,
     });
   }
 
@@ -6626,7 +6745,7 @@ class ChornicaTimelineView extends ItemView {
    */
   renderEventsTab(container: HTMLElement): void {
     container.empty(); // Clear previous content
-    container.createEl("h3", { text: "Event Analysis" });
+    container.createEl("h3", { text: this.plugin.i18nManager.t().stats.eventAnalysis });
 
     // --- Data Gathering (New Structure) ---
     const allEvents = this.plugin.settings.events || [];
@@ -6636,7 +6755,7 @@ class ChornicaTimelineView extends ItemView {
     if (totalEvents === 0) {
       container.createEl("div", {
         cls: "chronica-empty-state",
-        text: "No events recorded yet. Add events via the sidebar or by shift-clicking weeks.",
+        text: this.plugin.i18nManager.t().stats.noEventsRecordedYet,
       });
       return;
     }
@@ -6693,7 +6812,7 @@ class ChornicaTimelineView extends ItemView {
     });
     distributionCard.createEl("div", {
       cls: "chronica-stat-title",
-      text: "Event Type Distribution",
+      text: this.plugin.i18nManager.t().stats.eventTypeDistribution,
     });
     const chartContainer = distributionCard.createEl("div", {
       cls: "chronica-event-chart-container",
@@ -6728,7 +6847,7 @@ class ChornicaTimelineView extends ItemView {
     });
     eventListCard.createEl("div", {
       cls: "chronica-stat-title",
-      text: "Recent Events (Max 10)",
+      text: `${this.plugin.i18nManager.t().stats.recentEvents} (${this.plugin.i18nManager.t().stats.max10})`,
     });
 
     if (recentEvents.length > 0) {
@@ -6787,7 +6906,7 @@ class ChornicaTimelineView extends ItemView {
     } else {
       eventListCard.createEl("div", {
         cls: "chronica-empty-list",
-        text: "No events found",
+        text: this.plugin.i18nManager.t().stats.noEventsFound,
       });
     }
 
@@ -6809,11 +6928,11 @@ class ChornicaTimelineView extends ItemView {
       row.createEl("td", { text: value });
     };
 
-    addStatRow("Total Events", totalEvents.toString());
-    addStatRow("Years with Events", uniqueYears.length.toString());
-    addStatRow("Average Events/Year", eventsByYear);
-    addStatRow("Single-Week Events", singleEvents.toString());
-    addStatRow("Multi-Week Events", rangeEvents.toString());
+    addStatRow(this.plugin.i18nManager.t().stats.totalEvents, totalEvents.toString());
+    addStatRow(this.plugin.i18nManager.t().stats.yearsWithEvents, uniqueYears.length.toString());
+    addStatRow(this.plugin.i18nManager.t().stats.averageEventsPerYear, eventsByYear);
+    addStatRow(this.plugin.i18nManager.t().stats.singleWeekEvents, singleEvents.toString());
+    addStatRow(this.plugin.i18nManager.t().stats.multiWeekEvents, rangeEvents.toString());
   }
 
   /**
@@ -6846,7 +6965,7 @@ class ChornicaTimelineView extends ItemView {
     });
     phasesCard.createEl("div", {
       cls: "chronica-stat-title",
-      text: "Life Phases",
+      text: this.plugin.i18nManager.t().stats.lifePhases,
     });
 
     let currentPhase = "";
@@ -6856,43 +6975,43 @@ class ChornicaTimelineView extends ItemView {
       currentPhase = "Early Childhood";
       phaseColor = "#8BC34A";
     } else if (ageInYears < 13) {
-      currentPhase = "Childhood";
+      currentPhase = this.plugin.i18nManager.t().stats.childhood;
       phaseColor = "#4CAF50";
     } else if (ageInYears < 18) {
       currentPhase = "Adolescence";
       phaseColor = "#009688";
     } else if (ageInYears < 25) {
-      currentPhase = "Young Adult";
+      currentPhase = this.plugin.i18nManager.t().stats.youngAdult;
       phaseColor = "#00BCD4";
     } else if (ageInYears < 40) {
-      currentPhase = "Early Adulthood";
+      currentPhase = this.plugin.i18nManager.t().stats.earlyAdult;
       phaseColor = "#03A9F4";
     } else if (ageInYears < 60) {
-      currentPhase = "Middle Adulthood";
+      currentPhase = this.plugin.i18nManager.t().stats.middleAdult;
       phaseColor = "#3F51B5";
     } else {
-      currentPhase = "Late Adulthood";
+      currentPhase = this.plugin.i18nManager.t().stats.lateAdult;
       phaseColor = "#9C27B0";
     }
 
     // Create phase visualization bar (Rendering logic - unchanged)
     const phaseBar = phasesCard.createEl("div", { cls: "chronica-phase-bar" });
     const phases = [
-      { name: "Childhood", end: 18, color: "#4CAF50" },
-      { name: "Young Adult", end: 25, color: "#00BCD4" },
-      { name: "Early Adult", end: 40, color: "#03A9F4" },
-      { name: "Middle Adult", end: 60, color: "#3F51B5" },
+      { name: this.plugin.i18nManager.t().stats.childhood, end: 18, color: "#4CAF50" },
+      { name: this.plugin.i18nManager.t().stats.youngAdult, end: 25, color: "#00BCD4" },
+      { name: this.plugin.i18nManager.t().stats.earlyAdult, end: 40, color: "#03A9F4" },
+      { name: this.plugin.i18nManager.t().stats.middleAdult, end: 60, color: "#3F51B5" },
       {
-        name: "Late Adult",
+        name: this.plugin.i18nManager.t().stats.lateAdult,
         end: this.plugin.settings.lifespan,
         color: "#9C27B0",
       },
     ];
-    let totalPhaseLength = phases[phases.length - 1].end; // Use end year of last phase
+    const totalPhaseLength = phases[phases.length - 1].end; // Use end year of last phase
     let currentYear = 0;
     phases.forEach((phase, index) => {
-      let phaseStartYear = index === 0 ? 0 : phases[index - 1].end;
-      let phaseLengthYears = phase.end - phaseStartYear;
+      const phaseStartYear = index === 0 ? 0 : phases[index - 1].end;
+      const phaseLengthYears = phase.end - phaseStartYear;
       const relativeWidth = (phaseLengthYears / totalPhaseLength) * 100;
 
       const phaseSegment = phaseBar.createEl("div", {
@@ -6921,9 +7040,9 @@ class ChornicaTimelineView extends ItemView {
     });
     phasesCard.createEl("div", {
       cls: "chronica-current-phase",
-      text: `Current phase: ${currentPhase} (${Math.floor(
+      text: `${this.plugin.i18nManager.t().stats.currentPhase}: ${currentPhase} (${Math.floor(
         ageInYears
-      )} years old)`,
+      )} ${this.plugin.i18nManager.t().stats.years} old)`,
     }).style.color = phaseColor;
 
     // --- Milestones Card (Unaffected by event structure change) ---
@@ -6932,35 +7051,35 @@ class ChornicaTimelineView extends ItemView {
     });
     milestonesCard.createEl("div", {
       cls: "chronica-stat-title",
-      text: "Life Milestones",
+      text: this.plugin.i18nManager.t().stats.lifeMilestones,
     });
     const milestoneTable = milestonesCard.createEl("table", {
       cls: "chronica-milestone-table",
     });
     // (Table header rendering logic - unchanged)
     const headerRow = milestoneTable.createEl("tr");
-    headerRow.createEl("th", { text: "Milestone" });
-    headerRow.createEl("th", { text: "Age" });
-    headerRow.createEl("th", { text: "Date" });
-    headerRow.createEl("th", { text: "Status" });
+    headerRow.createEl("th", { text: this.plugin.i18nManager.t().stats.milestone });
+    headerRow.createEl("th", { text: this.plugin.i18nManager.t().stats.age });
+    headerRow.createEl("th", { text: this.plugin.i18nManager.t().stats.date });
+    headerRow.createEl("th", { text: this.plugin.i18nManager.t().stats.status });
     // (addMilestone function and calls - unchanged)
     const formatDate = (date: Date): string => {
-      const months = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
+      const monthNames = [
+        this.plugin.i18nManager.t().months.jan,
+        this.plugin.i18nManager.t().months.feb,
+        this.plugin.i18nManager.t().months.mar,
+        this.plugin.i18nManager.t().months.apr,
+        this.plugin.i18nManager.t().months.may,
+        this.plugin.i18nManager.t().months.jun,
+        this.plugin.i18nManager.t().months.jul,
+        this.plugin.i18nManager.t().months.aug,
+        this.plugin.i18nManager.t().months.sep,
+        this.plugin.i18nManager.t().months.oct,
+        this.plugin.i18nManager.t().months.nov,
+        this.plugin.i18nManager.t().months.dec,
       ];
       return `${
-        months[date.getMonth()]
+        monthNames[date.getMonth()]
       } ${date.getDate()}, ${date.getFullYear()}`;
     };
     const addMilestone = (name: string, age: number) => {
@@ -6973,14 +7092,14 @@ class ChornicaTimelineView extends ItemView {
       const isPast = milestoneDate < now;
       const statusCell = row.createEl("td");
       statusCell.addClass(isPast ? "milestone-past" : "milestone-future");
-      statusCell.textContent = isPast ? "Passed" : "Upcoming";
+      statusCell.textContent = isPast ? this.plugin.i18nManager.t().stats.passed : this.plugin.i18nManager.t().stats.upcoming;
     };
-    addMilestone("Childhood End", 18);
-    addMilestone("Quarter Life", Math.round(this.plugin.settings.lifespan / 4));
-    addMilestone("Half Life", Math.round(this.plugin.settings.lifespan / 2));
-    addMilestone("Retirement Age", 65);
+    addMilestone(this.plugin.i18nManager.t().stats.childhoodEnd, 18);
+    addMilestone(this.plugin.i18nManager.t().stats.quarterLife, Math.round(this.plugin.settings.lifespan / 4));
+    addMilestone(this.plugin.i18nManager.t().stats.halfLife, Math.round(this.plugin.settings.lifespan / 2));
+    addMilestone(this.plugin.i18nManager.t().stats.retirementAge, 65);
     addMilestone(
-      "Three-Quarter Life",
+      this.plugin.i18nManager.t().stats.threeQuarterLife,
       Math.round(this.plugin.settings.lifespan * 0.75)
     );
 
@@ -6990,7 +7109,7 @@ class ChornicaTimelineView extends ItemView {
     });
     completionCard.createEl("div", {
       cls: "chronica-stat-title",
-      text: "Week Completion & Events",
+      text: this.plugin.i18nManager.t().stats.weekCompletionEvents,
     });
 
     // Calculate week completion stats (Unchanged)
@@ -6999,9 +7118,9 @@ class ChornicaTimelineView extends ItemView {
     const completionRate = pastWeeks > 0 ? (filledWeeks / pastWeeks) * 100 : 0;
     completionCard.createEl("div", {
       cls: "chronica-completion-stat",
-      text: `${filledWeeks} weeks manually/auto filled out of ${Math.round(
+      text: `${filledWeeks} ${this.plugin.i18nManager.t().stats.weeksManuallyAutoFilled} ${this.plugin.i18nManager.t().stats.outOfPastWeeks} ${Math.round(
         pastWeeks
-      )} past weeks (${completionRate.toFixed(1)}%)`,
+      )} ${this.plugin.i18nManager.t().stats.weeksLived} (${completionRate.toFixed(1)}%)`,
     });
     const completionBar = completionCard.createEl("div", {
       cls: "chronica-progress-bar",
@@ -7019,9 +7138,9 @@ class ChornicaTimelineView extends ItemView {
     // Display the event count stat (Uses new totalEvents)
     completionCard.createEl("div", {
       cls: "chronica-completion-stat",
-      text: `${totalEvents} events recorded (${eventsPerWeek.toFixed(
+      text: `${totalEvents} ${this.plugin.i18nManager.t().stats.eventsRecorded} (${eventsPerWeek.toFixed(
         3
-      )} events/week)`,
+      )} ${this.plugin.i18nManager.t().stats.eventsPerWeek})`,
     });
   }
 
@@ -7075,11 +7194,11 @@ class ChornicaTimelineView extends ItemView {
       emptyState.createEl("div", { cls: "chronica-empty-icon", text: "📊" });
       emptyState.createEl("div", {
         cls: "chronica-empty-message",
-        text: "No events added yet",
+        text: this.plugin.i18nManager.t().stats.noEventsAddedYet,
       });
       emptyState.createEl("div", {
         cls: "chronica-empty-submessage",
-        text: "Add events to see charts and visualizations",
+                  text: this.plugin.i18nManager.t().stats.addEventsToSeeCharts,
       });
       return;
     }
@@ -7090,7 +7209,7 @@ class ChornicaTimelineView extends ItemView {
     });
     pieChartCard.createEl("h3", {
       cls: "chronica-chart-title",
-      text: "Event Distribution by Type",
+      text: this.plugin.i18nManager.t().stats.eventDistributionByType,
     });
 
     const eventsByType = eventTypes
@@ -7202,7 +7321,7 @@ class ChornicaTimelineView extends ItemView {
       fill: "var(--text-muted)",
       "font-size": "6",
     });
-    totalLabel.textContent = "Events";
+    totalLabel.textContent = this.plugin.i18nManager.t().stats.events;
     g.appendChild(totalLabel);
 
     // --- Chart 2: Seasonal Pattern Analysis (Radar Chart) ---
@@ -7211,7 +7330,7 @@ class ChornicaTimelineView extends ItemView {
     });
     seasonalCard.createEl("h3", {
       cls: "chronica-chart-title",
-      text: "Seasonal Patterns",
+      text: this.plugin.i18nManager.t().stats.seasonalPatterns,
     });
 
     const seasons = [
@@ -7437,7 +7556,7 @@ class ChornicaTimelineView extends ItemView {
         fill: "var(--text-muted)",
         "font-size": "10",
       });
-      totalCenterLabel.textContent = "Events";
+      totalCenterLabel.textContent = this.plugin.i18nManager.t().stats.events;
       seasonalSvg.appendChild(totalCenterLabel);
     } else {
       /* ... keep empty state logic ... */
@@ -7460,7 +7579,7 @@ class ChornicaTimelineView extends ItemView {
     });
     futurePlanningCard.createEl("h3", {
       cls: "chronica-chart-title",
-      text: "Future Planning Horizon",
+      text: this.plugin.i18nManager.t().stats.futurePlanningHorizon,
     });
 
     const futureEvents = allEvents.filter((event) => {
@@ -7541,7 +7660,7 @@ class ChornicaTimelineView extends ItemView {
     });
     monthlyChartCard.createEl("h3", {
       cls: "chronica-chart-title",
-      text: "Event Distribution by Month",
+      text: this.plugin.i18nManager.t().stats.eventDistributionByMonth,
     });
 
     const eventsByMonth: number[] = Array(12).fill(0);
@@ -7899,8 +8018,8 @@ class ChornicaTimelineView extends ItemView {
         (type) => type.id === typeId
       );
 
-      let eventTitleForTooltip = matchedEvent.name || matchedEvent.description;
-      let eventDescriptionForTooltip = matchedEvent.description || "";
+      const eventTitleForTooltip = matchedEvent.name || matchedEvent.description;
+      const eventDescriptionForTooltip = matchedEvent.description || "";
       let eventTypeNameForTooltip = "Unknown Type";
       let eventPeriodForTooltip = matchedEvent.weekKey;
 
@@ -7954,7 +8073,9 @@ class ChornicaTimelineView extends ItemView {
       try {
         const [y, w] = weekKey.split("-W").map(Number);
         cellDate = new Date(y, 0, 1 + (w - 1) * 7);
-      } catch {}
+      } catch {
+        // Invalid week key format, cellDate will remain null
+      }
       if (cellDate) {
         const sixMonthsFromNow = new Date(
           now.getTime() + 6 * 30 * 24 * 60 * 60 * 1000
@@ -8068,9 +8189,9 @@ class MarkerSettingsModal extends Modal {
       .addDropdown((dropdown) => {
         dropdown
           .addOption("all", "Every Month")
-          .addOption("quarter", "Every Quarter (Jan, Apr, Jul, Oct)")
-          .addOption("half-year", "Every Half Year (Jan, Jul)")
-          .addOption("year", "Every Year (Jan only)")
+          .addOption("quarter", `Every Quarter (${this.plugin.i18nManager.t().months.jan}, ${this.plugin.i18nManager.t().months.apr}, ${this.plugin.i18nManager.t().months.jul}, ${this.plugin.i18nManager.t().months.oct})`)
+          .addOption("half-year", `Every Half Year (${this.plugin.i18nManager.t().months.jan}, ${this.plugin.i18nManager.t().months.jul})`)
+          .addOption("year", `Every Year (${this.plugin.i18nManager.t().months.jan} only)`)
           .setValue(this.plugin.settings.monthMarkerFrequency)
           .onChange(async (value: string) => {
             this.plugin.settings.monthMarkerFrequency = value as
@@ -8086,7 +8207,7 @@ class MarkerSettingsModal extends Modal {
     // Month markers setting (Toggle) - Now define the toggle that controls the frequency setting's visibility
     new Setting(contentEl)
       .setName("Month Markers")
-      .setDesc("Show month markers along the left side (Jan, Feb, Mar, ...)")
+      .setDesc(`Show month markers along the left side (${this.plugin.i18nManager.t().months.jan}, ${this.plugin.i18nManager.t().months.feb}, ${this.plugin.i18nManager.t().months.mar}, ...)`)
       .addToggle((toggle) => {
         toggle
           .setValue(this.plugin.settings.showMonthMarkers)
@@ -8125,6 +8246,252 @@ class MarkerSettingsModal extends Modal {
     this.contentEl.empty();
   }
 }
+
+// -----------------------------------------------------------------------
+// PINNABLE VIEW CLASSES
+// -----------------------------------------------------------------------
+
+/**
+ * Overview view - shows life progress, age, events count, birthday
+ */
+class ChronicaOverviewView extends ItemView {
+  plugin: ChornicaTimelinePlugin;
+
+  constructor(leaf: WorkspaceLeaf, plugin: ChornicaTimelinePlugin) {
+    super(leaf);
+    this.plugin = plugin;
+  }
+
+  getViewType(): string {
+    return CHRONICA_OVERVIEW_VIEW_TYPE;
+  }
+
+  getDisplayText(): string {
+    return this.plugin.i18nManager.t().stats.overview;
+  }
+
+  getIcon(): string {
+    return "bar-chart-3";
+  }
+
+  async onOpen(): Promise<void> {
+    this.renderView();
+  }
+
+  async onClose(): Promise<void> {
+    // Nothing to clean up
+  }
+
+  refreshView(): void {
+    this.renderView();
+  }
+
+  renderView(): void {
+    const container = this.contentEl;
+    container.empty();
+    
+    // Render only the overview tab content
+    this.renderOverviewTab(container);
+  }
+
+  private renderOverviewTab(container: HTMLElement): void {
+    // Reuse the existing overview tab rendering logic from ChornicaTimelineView
+    const now = new Date();
+    const [year, month, day] = this.plugin.settings.birthday
+      .split("-")
+      .map(Number);
+    const birthdayDate = new Date(year, month - 1, day);
+    const ageInWeeks = this.plugin.getFullWeekAge(birthdayDate, now);
+    const totalWeeks = this.plugin.settings.lifespan * 52;
+    const livedPercentage = Math.min(
+      100,
+      Math.max(0, (ageInWeeks / totalWeeks) * 100)
+    );
+    const remainingWeeks = Math.max(0, totalWeeks - ageInWeeks);
+    const yearsLived = Math.floor(ageInWeeks / 52);
+    const remainingWeeksInYear = ageInWeeks % 52;
+    const decadesLived = Math.floor(yearsLived / 10);
+    const yearsIntoCurrentDecade = yearsLived % 10;
+
+    // Event count calculations
+    const totalEvents = this.plugin.settings.events.length;
+    const eventsByType: { name: string; count: number }[] = [];
+
+    this.plugin.settings.eventTypes.forEach((eventType) => {
+      const count = this.plugin.settings.events.filter(
+        (event) => event.typeId === eventType.id
+      ).length;
+      if (count > 0) {
+        eventsByType.push({ name: eventType.name, count: count });
+      }
+    });
+
+    eventsByType.sort((a, b) => b.count - a.count);
+
+    let eventBreakdown = eventsByType
+      .map((et) => `${et.count} ${et.name}`)
+      .join(", ");
+    if (!eventBreakdown) {
+      eventBreakdown = this.plugin.i18nManager.t().stats.noEventsAddedYet;
+    }
+
+    // Render UI using the same structure as main timeline view
+    const overviewGrid = container.createEl("div", {
+      cls: "chronica-stats-grid",
+    });
+
+    // Life progress card
+    const progressSection = overviewGrid.createEl("div", {
+      cls: "chronica-stat-section",
+    });
+    const lifeSummary = progressSection.createEl("div", {
+      cls: "chronica-stat-card chronica-stat-card-full",
+    });
+    lifeSummary.createEl("div", {
+      cls: "chronica-stat-title",
+      text: this.plugin.i18nManager.t().stats.lifeProgress,
+    });
+    const progressContainer = lifeSummary.createEl("div", {
+      cls: "chronica-progress-container",
+    });
+    const circleContainer = progressContainer.createEl("div", {
+      cls: "chronica-circular-progress",
+    });
+    const progressValue = Math.round(livedPercentage);
+    
+    // SVG rendering logic for circular progress bar
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("width", "60");
+    svg.setAttribute("height", "60");
+    svg.setAttribute("viewBox", "0 0 80 80");
+    const bgCircle = document.createElementNS(svgNS, "circle");
+    bgCircle.setAttrs({
+      cx: "40",
+      cy: "40",
+      r: "35",
+      fill: "none",
+      stroke: "var(--background-modifier-border)",
+      "stroke-width": "5",
+    });
+    svg.appendChild(bgCircle);
+    const progressCircle = document.createElementNS(svgNS, "circle");
+    progressCircle.setAttrs({
+      cx: "40",
+      cy: "40",
+      r: "35",
+      fill: "none",
+      stroke: "var(--interactive-accent)",
+      "stroke-width": "5",
+      "stroke-dasharray": "220",
+      "stroke-dashoffset": `${220 - (220 * livedPercentage) / 100}`,
+      transform: "rotate(-90 40 40)",
+    });
+    svg.appendChild(progressCircle);
+    circleContainer.appendChild(svg);
+    circleContainer.createEl("div", {
+      cls: "chronica-circular-progress-text",
+      text: `${progressValue}%`,
+    });
+    
+    // Bar container
+    const barContainer = progressContainer.createEl("div", {
+      cls: "chronica-bar-container",
+    });
+    const progressBar = barContainer.createEl("div", {
+      cls: "chronica-progress-bar",
+    });
+    const progressFill = progressBar.createEl("div", {
+      cls: "chronica-progress-bar-fill",
+    });
+    progressFill.style.width = `${livedPercentage}%`;
+    barContainer.createEl("div", {
+      cls: "chronica-stat-subtitle",
+      text: `${ageInWeeks} ${this.plugin.i18nManager.t().stats.weeksLived}, ${remainingWeeks} ${this.plugin.i18nManager.t().stats.weeksRemaining}`,
+    });
+
+    // Current age card
+    const ageCard = overviewGrid.createEl("div", { cls: "chronica-stat-card" });
+    ageCard.createEl("div", {
+      cls: "chronica-stat-title",
+      text: this.plugin.i18nManager.t().stats.currentAge,
+    });
+    ageCard.createEl("div", {
+      cls: "chronica-stat-value",
+      text: `${yearsLived} ${this.plugin.i18nManager.getRussianPlural(yearsLived, this.plugin.i18nManager.t().stats.yearsOne, this.plugin.i18nManager.t().stats.yearsFew, this.plugin.i18nManager.t().stats.yearsMany)}, ${remainingWeeksInYear} ${this.plugin.i18nManager.getRussianPlural(remainingWeeksInYear, this.plugin.i18nManager.t().stats.weeksOne, this.plugin.i18nManager.t().stats.weeksFew, this.plugin.i18nManager.t().stats.weeksMany)}`,
+    });
+    ageCard.createEl("div", {
+      cls: "chronica-stat-subtitle",
+      text: `${decadesLived} ${this.plugin.i18nManager.getRussianPlural(decadesLived, this.plugin.i18nManager.t().stats.decadesOne, this.plugin.i18nManager.t().stats.decadesFew, this.plugin.i18nManager.t().stats.decadesMany)} + ${yearsIntoCurrentDecade} ${this.plugin.i18nManager.getRussianPlural(yearsIntoCurrentDecade, this.plugin.i18nManager.t().stats.yearsOne, this.plugin.i18nManager.t().stats.yearsFew, this.plugin.i18nManager.t().stats.yearsMany)}`,
+    });
+
+    // Events count card
+    const eventsCard = overviewGrid.createEl("div", {
+      cls: "chronica-stat-card",
+    });
+    eventsCard.createEl("div", {
+      cls: "chronica-stat-title",
+      text: this.plugin.i18nManager.t().stats.totalEvents,
+    });
+    eventsCard.createEl("div", {
+      cls: "chronica-stat-value",
+      text: totalEvents.toString(),
+    });
+    eventsCard.createEl("div", {
+      cls: "chronica-stat-subtitle",
+      text: eventBreakdown,
+    });
+
+    // Birthday info card
+    const birthdayCard = overviewGrid.createEl("div", {
+      cls: "chronica-stat-card",
+    });
+    birthdayCard.createEl("div", {
+      cls: "chronica-stat-title",
+      text: this.plugin.i18nManager.t().stats.birthday,
+    });
+    const formatBirthday = (date: Date): string => {
+      const monthNames = [
+        this.plugin.i18nManager.t().monthNames.january,
+        this.plugin.i18nManager.t().monthNames.february,
+        this.plugin.i18nManager.t().monthNames.march,
+        this.plugin.i18nManager.t().monthNames.april,
+        this.plugin.i18nManager.t().monthNames.may,
+        this.plugin.i18nManager.t().monthNames.june,
+        this.plugin.i18nManager.t().monthNames.july,
+        this.plugin.i18nManager.t().monthNames.august,
+        this.plugin.i18nManager.t().monthNames.september,
+        this.plugin.i18nManager.t().monthNames.october,
+        this.plugin.i18nManager.t().monthNames.november,
+        this.plugin.i18nManager.t().monthNames.december,
+      ];
+      return `${
+        monthNames[date.getMonth()]
+      } ${date.getDate()}, ${date.getFullYear()}`;
+    };
+    birthdayCard.createEl("div", {
+      cls: "chronica-stat-value",
+      text: formatBirthday(birthdayDate),
+    });
+    const nextBirthdayDate = new Date(birthdayDate);
+    nextBirthdayDate.setFullYear(now.getFullYear());
+    if (nextBirthdayDate < now) {
+      nextBirthdayDate.setFullYear(now.getFullYear() + 1);
+    }
+    const daysUntilBirthday = Math.ceil(
+      (nextBirthdayDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    birthdayCard.createEl("div", {
+      cls: "chronica-stat-subtitle",
+      text: `${this.plugin.i18nManager.t().stats.nextBirthdayIn} ${daysUntilBirthday} ${this.plugin.i18nManager.t().stats.days}`,
+    });
+  }
+}
+
+/**
+ * Events view - shows events list with filtering/sorting
+ */
+
 
 // -----------------------------------------------------------------------
 // EVENT TYPES MODAL CLASS
@@ -8167,8 +8534,8 @@ class ChornicaSettingTab extends PluginSettingTab {
 
     // Birthday setting
     new Setting(containerEl)
-      .setName("Birthday")
-      .setDesc("Your date of birth (YYYY-MM-DD)")
+      .setName(this.plugin.i18nManager.t().settings.birthday)
+      .setDesc(this.plugin.i18nManager.t().settings.birthdayDesc)
       .addText((text) =>
         text
           .setPlaceholder("1990-01-01")
@@ -8188,8 +8555,8 @@ class ChornicaSettingTab extends PluginSettingTab {
 
     // Lifespan setting
     new Setting(containerEl)
-      .setName("Lifespan")
-      .setDesc("Maximum age in years to display on the timeline grid.")
+      .setName(this.plugin.i18nManager.t().settings.lifespan)
+      .setDesc(this.plugin.i18nManager.t().settings.lifespanDesc)
       .addSlider((slider) =>
         slider
           .setLimits(50, 120, 5) // Min 50, Max 120, Step 5
@@ -8204,8 +8571,8 @@ class ChornicaSettingTab extends PluginSettingTab {
 
     // Language setting
     new Setting(containerEl)
-      .setName("Language")
-      .setDesc("Interface language for the plugin.")
+      .setName(this.plugin.i18nManager.t().settings.language)
+      .setDesc(this.plugin.i18nManager.t().settings.languageDesc)
       .addDropdown((dropdown) =>
         dropdown
           .addOption("en", "English")
@@ -8214,8 +8581,15 @@ class ChornicaSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.language = value as "en" | "ru";
             this.plugin.i18nManager.setLanguage(value as "en" | "ru");
+            // Update event type names with new language
+            this.plugin.updateEventTypeNames();
             await this.plugin.saveSettings();
-            this.refreshAllViews();
+            // Add a small delay to ensure i18n manager is fully updated before refreshing views
+            setTimeout(() => this.refreshAllViews(), 10);
+            // Apply dynamic button sizing after language change
+            setTimeout(() => this.plugin.applyDynamicButtonSizing(), 100);
+            // Refresh the settings tab to show new language immediately
+            setTimeout(() => this.display(), 50);
           })
       );
 
@@ -8224,10 +8598,8 @@ class ChornicaSettingTab extends PluginSettingTab {
 
     // Notes folder setting (Main / Weekly)
     new Setting(containerEl)
-      .setName("Weekly Notes Folder")
-      .setDesc(
-        "Folder to store weekly notes (leave blank for vault root). Path will be processed after you finish typing and click outside the box."
-      )
+      .setName(this.plugin.i18nManager.t().settings.weeklyNotesFolder)
+      .setDesc(this.plugin.i18nManager.t().settings.weeklyNotesFolderDesc)
       .setClass("chronica-folder-input-setting")
       .addSearch((search) => {
         let initialValueOnFocus = this.plugin.settings.notesFolder;
@@ -8265,6 +8637,7 @@ class ChornicaSettingTab extends PluginSettingTab {
               !this.plugin.settings.notesFolder &&
               initialValueOnFocus.trim()
             ) {
+              // Notes folder was cleared, no action needed
             }
             // Update initialValueOnFocus for the next focus event,
             // or it will always compare to the value when settings tab was opened
@@ -8276,10 +8649,8 @@ class ChornicaSettingTab extends PluginSettingTab {
 
     // Separate folders toggle
     const separateFoldersToggle = new Setting(containerEl)
-      .setName("Use Separate Event Notes Folder")
-      .setDesc(
-        "Store event-specific notes in a different folder from weekly notes."
-      )
+      .setName(this.plugin.i18nManager.t().settings.useSeparateEventNotesFolder)
+      .setDesc(this.plugin.i18nManager.t().settings.useSeparateEventNotesFolderDesc)
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.useSeparateFolders)
@@ -8298,10 +8669,8 @@ class ChornicaSettingTab extends PluginSettingTab {
 
     // Event notes folder setting (conditionally displayed)
     const eventFolderSetting = new Setting(containerEl)
-      .setName("Event Notes Folder")
-      .setDesc(
-        "Folder for event notes (if separate). Path processed on exiting input."
-      )
+      .setName(this.plugin.i18nManager.t().settings.eventNotesFolder)
+      .setDesc(this.plugin.i18nManager.t().settings.eventNotesFolderDesc)
       .setClass("event-folder-selector")
       .setClass("chronica-folder-input-setting")
       .addSearch((search) => {
@@ -8340,6 +8709,7 @@ class ChornicaSettingTab extends PluginSettingTab {
               !this.plugin.settings.eventNotesFolder &&
               initialValueOnFocus.trim()
             ) {
+              // Event notes folder was cleared, no action needed
             }
             initialValueOnFocus = finalValue;
           }
@@ -8353,9 +8723,9 @@ class ChornicaSettingTab extends PluginSettingTab {
     }
 
     // --- File Naming Templates Sub-section ---
-    containerEl.createEl("h3", { text: "File Naming Templates" });
+    containerEl.createEl("h3", { text: this.plugin.i18nManager.t().settings.fileNamingTemplates });
     const fileNamingDesc = containerEl.createEl("p", {
-      text: "Customize how Chronica names your week and event note files.",
+      text: this.plugin.i18nManager.t().settings.fileNamingHelp,
       cls: "chronica-template-description",
     });
 
@@ -8443,12 +8813,12 @@ class ChornicaSettingTab extends PluginSettingTab {
   - \${YYYY}: Calendar Year (e.g., 2025)
   - \${MM}: Calendar Month (01-12)
   - \${DD}: Calendar Day (01-31)
-  - \${MMMM}: Full Month Name (e.g., January)
-  - \${MMM}: Short Month Name (e.g., Jan)
+  - \${MMMM}: Full Month Name (e.g., ${this.plugin.i18nManager.t().monthNames.january})
+- \${MMM}: Short Month Name (e.g., ${this.plugin.i18nManager.t().months.jan})
   - \${YY}: Short Calendar Year (e.g., 25)`;
 
     const weekNoteSetting = new Setting(containerEl)
-      .setName("Week Note Template")
+      .setName(this.plugin.i18nManager.t().settings.weekNoteTemplate)
       .addText((text) =>
         text
           .setPlaceholder(DEFAULT_SETTINGS.weekNoteTemplate)
@@ -8475,7 +8845,7 @@ class ChornicaSettingTab extends PluginSettingTab {
   - \${YY}: Short Calendar Year of start date`;
 
     const eventNoteSetting = new Setting(containerEl)
-      .setName("Event Note Template (Single)")
+      .setName(this.plugin.i18nManager.t().settings.eventNoteTemplate)
       .addText((text) =>
         text
           .setPlaceholder(DEFAULT_SETTINGS.eventNoteTemplate)
@@ -8501,7 +8871,7 @@ class ChornicaSettingTab extends PluginSettingTab {
   - \${endDate_YYYY}, \${endDate_MM}, \${endDate_DD}, \${endDate_MMMM}, \${endDate_MMM}, \${endDate_YY} (for actual end date)`;
 
     const rangeNoteSetting = new Setting(containerEl)
-      .setName("Range Event Template")
+      .setName(this.plugin.i18nManager.t().settings.rangeEventTemplate)
       .addText((text) =>
         text
           .setPlaceholder(DEFAULT_SETTINGS.rangeNoteTemplate)
@@ -8515,12 +8885,12 @@ class ChornicaSettingTab extends PluginSettingTab {
     createInfoBubbleWithCustomTooltip(rangeNoteSetting, rangeNotePlaceholders);
 
     // --- Appearance Settings ---
-    containerEl.createEl("h3", { text: "Appearance" });
+    containerEl.createEl("h3", { text: this.plugin.i18nManager.t().settings.appearance });
 
     // Quote setting
     new Setting(containerEl)
-      .setName("Footer Quote")
-      .setDesc("Inspirational quote for the sidebar footer.")
+      .setName(this.plugin.i18nManager.t().settings.footerQuote)
+      .setDesc(this.plugin.i18nManager.t().settings.footerQuoteDesc)
       .addText((text) =>
         text
           .setPlaceholder("the only true luxury is time.")
@@ -8534,8 +8904,8 @@ class ChornicaSettingTab extends PluginSettingTab {
 
     // Color settings
     new Setting(containerEl)
-      .setName("Past Weeks Color")
-      .setDesc("Background color for weeks that have passed.")
+      .setName(this.plugin.i18nManager.t().settings.pastWeeksColor)
+      .setDesc(this.plugin.i18nManager.t().settings.pastWeeksColorDesc)
       .addColorPicker((colorPicker) =>
         colorPicker
           .setValue(this.plugin.settings.pastCellColor)
@@ -8548,8 +8918,8 @@ class ChornicaSettingTab extends PluginSettingTab {
           })
       );
     new Setting(containerEl)
-      .setName("Current Week Color")
-      .setDesc("Background color for the current week.")
+      .setName(this.plugin.i18nManager.t().settings.currentWeekColor)
+      .setDesc(this.plugin.i18nManager.t().settings.currentWeekColorDesc)
       .addColorPicker((colorPicker) =>
         colorPicker
           .setValue(this.plugin.settings.presentCellColor)
@@ -8561,8 +8931,8 @@ class ChornicaSettingTab extends PluginSettingTab {
           })
       );
     new Setting(containerEl)
-      .setName("Future Weeks Color")
-      .setDesc("Background color for weeks in the future.")
+      .setName(this.plugin.i18nManager.t().settings.futureWeeksColor)
+      .setDesc(this.plugin.i18nManager.t().settings.futureWeeksColorDesc)
       .addColorPicker((colorPicker) =>
         colorPicker
           .setValue(this.plugin.settings.futureCellColor)
@@ -8576,13 +8946,13 @@ class ChornicaSettingTab extends PluginSettingTab {
 
     // Cell Shape
     new Setting(containerEl)
-      .setName("Cell Shape")
-      .setDesc("Visual shape of the week cells.")
+      .setName(this.plugin.i18nManager.t().settings.cellShape)
+      .setDesc(this.plugin.i18nManager.t().settings.cellShapeDesc)
       .addDropdown((drop) =>
         drop
-          .addOption("square", "Square")
-          .addOption("circle", "Circle")
-          .addOption("diamond", "Diamond")
+          .addOption("square", this.plugin.i18nManager.t().settings.square)
+          .addOption("circle", this.plugin.i18nManager.t().settings.circle)
+          .addOption("diamond", this.plugin.i18nManager.t().settings.diamond)
           .setValue(this.plugin.settings.cellShape)
           .onChange(async (value) => {
             this.plugin.settings.cellShape = value as
@@ -8596,12 +8966,12 @@ class ChornicaSettingTab extends PluginSettingTab {
 
     // Grid Orientation
     new Setting(containerEl)
-      .setName("Grid Orientation")
-      .setDesc("How years and weeks are arranged.")
+      .setName(this.plugin.i18nManager.t().settings.gridOrientation)
+      .setDesc(this.plugin.i18nManager.t().settings.gridOrientationDesc)
       .addDropdown((drop) =>
         drop
-          .addOption("landscape", "Landscape (Years as Columns)")
-          .addOption("portrait", "Portrait (Years as Rows)")
+          .addOption("landscape", this.plugin.i18nManager.t().settings.landscape)
+          .addOption("portrait", this.plugin.i18nManager.t().settings.portrait)
           .setValue(this.plugin.settings.gridOrientation)
           .onChange(async (value) => {
             this.plugin.settings.gridOrientation = value as
@@ -8614,18 +8984,16 @@ class ChornicaSettingTab extends PluginSettingTab {
 
     // Tooltip Detail Level Setting
     const tooltipDetailSetting = new Setting(containerEl) // No need to store this setting object unless used elsewhere
-      .setName("Tooltip Detail Level")
+      .setName(this.plugin.i18nManager.t().settings.tooltipDetailLevel)
       .setDesc(
-        "Choose how much information is shown in the grid cell tooltips."
+        this.plugin.i18nManager.t().settings.tooltipDetailLevelDesc
       );
 
     // Store a reference to the "Enable Note Preview" setting element to toggle its visibility
-    let notePreviewSettingEl: HTMLElement;
-
     const notePreviewSetting = new Setting(containerEl)
-      .setName("Enable Note Preview in Tooltip")
+      .setName(this.plugin.i18nManager.t().settings.enableNotePreviewInTooltip)
       .setDesc(
-        "Show note filenames & snippets in the tooltip. This option is only available when 'Tooltip Detail Level' is 'Expanded'."
+        this.plugin.i18nManager.t().settings.enableNotePreviewInTooltipDesc
       )
       .addToggle((toggle) =>
         toggle
@@ -8635,13 +9003,13 @@ class ChornicaSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
-    notePreviewSettingEl = notePreviewSetting.settingEl; // Get the actual HTML element of the setting
+    const notePreviewSettingEl = notePreviewSetting.settingEl; // Get the actual HTML element of the setting
 
     // Now add the dropdown for Tooltip Detail Level, and make its onChange control the visibility
     tooltipDetailSetting.addDropdown((dropdown) =>
       dropdown
-        .addOption("expanded", "Expanded (Default - more details)")
-        .addOption("compact", "Compact (Less details)")
+        .addOption("expanded", this.plugin.i18nManager.t().settings.expanded)
+        .addOption("compact", this.plugin.i18nManager.t().settings.compact)
         .setValue(this.plugin.settings.tooltipDetailLevel)
         .onChange(async (value) => {
           this.plugin.settings.tooltipDetailLevel = value as
@@ -8666,10 +9034,10 @@ class ChornicaSettingTab extends PluginSettingTab {
     }
 
     // --- Marker Visibility Settings ---
-    containerEl.createEl("h3", { text: "Marker Visibility" });
+    containerEl.createEl("h3", { text: this.plugin.i18nManager.t().settings.markerVisibility });
     new Setting(containerEl)
-      .setName("Decade Markers")
-      .setDesc("Show age markers every 10 years.")
+      .setName(this.plugin.i18nManager.t().settings.decadeMarkers)
+      .setDesc(this.plugin.i18nManager.t().settings.decadeMarkersDesc)
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.showDecadeMarkers)
@@ -8680,8 +9048,8 @@ class ChornicaSettingTab extends PluginSettingTab {
           })
       );
     new Setting(containerEl)
-      .setName("Week Markers")
-      .setDesc("Show markers for weeks 10, 20, 30, 40, 50.")
+      .setName(this.plugin.i18nManager.t().settings.weekMarkers)
+      .setDesc(this.plugin.i18nManager.t().settings.weekMarkersDesc)
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.showWeekMarkers)
@@ -8692,8 +9060,8 @@ class ChornicaSettingTab extends PluginSettingTab {
           })
       );
     const monthMarkersToggle = new Setting(containerEl) // Store ref to toggle
-      .setName("Month Markers")
-      .setDesc("Show abbreviated month names.")
+      .setName(this.plugin.i18nManager.t().settings.monthMarkers)
+      .setDesc(this.plugin.i18nManager.t().settings.monthMarkersDesc)
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.showMonthMarkers)
@@ -8711,15 +9079,15 @@ class ChornicaSettingTab extends PluginSettingTab {
           })
       );
     const freqSetting = new Setting(containerEl)
-      .setName("Month Marker Frequency")
-      .setDesc("How often month markers appear (requires Month Markers ON).")
+      .setName(this.plugin.i18nManager.t().settings.monthMarkerFrequency)
+      .setDesc(this.plugin.i18nManager.t().settings.monthMarkerFrequencyDesc)
       .setClass("month-marker-frequency") // Class for show/hide
       .addDropdown((dropdown) => {
-        dropdown
-          .addOption("all", "Every Month")
-          .addOption("quarter", "Every Quarter")
-          .addOption("half-year", "Every Half Year")
-          .addOption("year", "Start of Year Only")
+                  dropdown
+            .addOption("all", this.plugin.i18nManager.t().settings.everyMonth)
+            .addOption("quarter", this.plugin.i18nManager.t().settings.everyQuarter)
+            .addOption("half-year", this.plugin.i18nManager.t().settings.everyHalfYear)
+            .addOption("year", this.plugin.i18nManager.t().settings.startOfYearOnly)
           .setValue(this.plugin.settings.monthMarkerFrequency)
           .onChange(async (value: string) => {
             this.plugin.settings.monthMarkerFrequency = value as
@@ -8736,8 +9104,8 @@ class ChornicaSettingTab extends PluginSettingTab {
       freqSetting.settingEl.classList.add("hidden");
     }
     new Setting(containerEl)
-      .setName("Birthday Marker")
-      .setDesc("Show a cake icon near your birthday week.")
+      .setName(this.plugin.i18nManager.t().settings.birthdayMarker)
+      .setDesc(this.plugin.i18nManager.t().settings.birthdayMarkerDesc)
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.showBirthdayMarker)
@@ -8749,27 +9117,27 @@ class ChornicaSettingTab extends PluginSettingTab {
       );
 
     // --- Event Type Management ---
-    containerEl.createEl("h3", { text: "Event Types" });
+    containerEl.createEl("h3", { text: this.plugin.i18nManager.t().settings.eventTypes });
     new Setting(containerEl)
-      .setName("Manage Event Types")
+      .setName(this.plugin.i18nManager.t().settings.manageEventTypes)
       .setDesc(
-        "Add custom types, or edit the names and colors of any type (including presets)."
+        this.plugin.i18nManager.t().settings.manageEventTypesDesc
       )
       .addButton((button) => {
-        button.setButtonText("Manage Types").onClick(() => {
+        button.setButtonText(this.plugin.i18nManager.t().settings.manageTypes).onClick(() => {
           // Assuming ManageEventTypesModal class exists and is correct
           new ManageEventTypesModal(this.app, this.plugin).open();
         });
       });
 
     // --- Week Filling Options ---
-    containerEl.createEl("h3", { text: "Week Filling Options" });
+    containerEl.createEl("h3", { text: this.plugin.i18nManager.t().settings.weekFillingOptions });
 
     // Auto-fill toggle (now controls manual fill indirectly)
     const autoFillToggleSetting = new Setting(containerEl)
-      .setName("Enable Auto-Fill")
+      .setName(this.plugin.i18nManager.t().settings.enableAutoFill)
       .setDesc(
-        "Automatically mark past weeks as 'filled' on a chosen day. If OFF, you can mark future weeks manually by right-clicking them."
+        this.plugin.i18nManager.t().settings.enableAutoFillDesc
       )
       .addToggle((toggle) =>
         toggle
@@ -8799,7 +9167,7 @@ class ChornicaSettingTab extends PluginSettingTab {
               ".chronica-fill-mode-status"
             );
             const statusText = value
-              ? "Auto-fill is active."
+              ? this.plugin.i18nManager.t().settings.autoFillActive
               : "Manual fill is active (right-click future weeks).";
 
             if (statusIndicator) {
@@ -8833,20 +9201,20 @@ class ChornicaSettingTab extends PluginSettingTab {
 
     // Auto-fill day selector (conditionally displayed)
     const daySelector = new Setting(containerEl)
-      .setName("Auto-Fill Day")
+      .setName(this.plugin.i18nManager.t().settings.autoFillDay)
       .setDesc(
-        "Day of the week when auto-fill should occur (requires Auto-Fill ON)."
+        this.plugin.i18nManager.t().settings.autoFillDayDesc
       )
       .setClass("auto-fill-day-selector")
       .addDropdown((dropdown) => {
         const days = [
-          "Sunday",
-          "Monday",
-          "Tuesday",
-          "Wednesday",
-          "Thursday",
-          "Friday",
-          "Saturday",
+          this.plugin.i18nManager.t().settings.sunday,
+          this.plugin.i18nManager.t().settings.monday,
+          this.plugin.i18nManager.t().settings.tuesday,
+          this.plugin.i18nManager.t().settings.wednesday,
+          this.plugin.i18nManager.t().settings.thursday,
+          this.plugin.i18nManager.t().settings.friday,
+          this.plugin.i18nManager.t().settings.saturday,
         ];
         days.forEach((day, index) => dropdown.addOption(index.toString(), day));
         dropdown
@@ -8859,8 +9227,8 @@ class ChornicaSettingTab extends PluginSettingTab {
 
     // Manual Fill Color Picker (conditionally displayed) - NEW
     const manualFillColorPickerSetting = new Setting(containerEl)
-      .setName("Manual Fill Color")
-      .setDesc("Color for manually filled weeks (requires Auto-Fill OFF).")
+      .setName(this.plugin.i18nManager.t().settings.manualFillColor)
+      .setDesc(this.plugin.i18nManager.t().settings.manualFillColorDesc)
       .setClass("manual-fill-color-selector") // New class for show/hide
       .addColorPicker((colorPicker) =>
         colorPicker
@@ -8882,7 +9250,7 @@ class ChornicaSettingTab extends PluginSettingTab {
 
     // Create the initial status indicator text element AFTER all related settings
     const initialStatusText = this.plugin.settings.enableAutoFill
-      ? "Auto-fill is active."
+      ? this.plugin.i18nManager.t().settings.autoFillActive
       : "Manual fill is active (right-click future weeks).";
     const statusEl = containerEl.createEl("div", {
       cls: "chronica-fill-mode-status",
@@ -8900,12 +9268,12 @@ class ChornicaSettingTab extends PluginSettingTab {
 
     // Clear filled weeks button
     const clearFilledSetting = new Setting(containerEl) // get a reference to this setting
-      .setName("Clear Filled Weeks")
+      .setName(this.plugin.i18nManager.t().settings.clearFilledWeeks)
       .setDesc(
-        "Remove all manual/auto filled week markings (does not delete notes or events)."
+        this.plugin.i18nManager.t().settings.clearFilledWeeksDesc
       )
-      .addButton((button) => {
-        button.setButtonText("Clear Filled Markings").onClick(async () => {
+              .addButton((button) => {
+          button.setButtonText(this.plugin.i18nManager.t().settings.clearFilledMarkings).onClick(async () => {
           if (
             confirm("Are you sure you want to clear all filled week markings?")
           ) {
@@ -8921,12 +9289,12 @@ class ChornicaSettingTab extends PluginSettingTab {
     clearFilledSetting.settingEl.insertAdjacentElement("afterend", statusEl);
 
     // --- Other Display/Interaction Settings ---
-    containerEl.createEl("h3", { text: "Other Display Options" });
+    containerEl.createEl("h3", { text: this.plugin.i18nManager.t().settings.otherDisplayOptions });
 
     // Week start day setting
     new Setting(containerEl)
-      .setName("Start Week On Monday")
-      .setDesc("Use Monday as the first day of the week (ISO standard).")
+      .setName(this.plugin.i18nManager.t().settings.startWeekOnMonday)
+      .setDesc(this.plugin.i18nManager.t().settings.startWeekOnMondayDesc)
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.startWeekOnMonday)
@@ -8939,8 +9307,8 @@ class ChornicaSettingTab extends PluginSettingTab {
 
     // Default fit to screen setting
     const fitToggleSetting = new Setting(containerEl) // Store ref to toggle
-      .setName("Default Fit to Screen")
-      .setDesc("Automatically zoom to fit the grid when opening the view.")
+      .setName(this.plugin.i18nManager.t().settings.defaultFitToScreen)
+      .setDesc(this.plugin.i18nManager.t().settings.defaultFitToScreenDesc)
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.defaultFitToScreen)
@@ -8959,8 +9327,8 @@ class ChornicaSettingTab extends PluginSettingTab {
 
     // Zoom level setting (conditionally displayed)
     const zoomSetting = new Setting(containerEl)
-      .setName("Default Zoom Level")
-      .setDesc("Manual zoom level if 'Fit to Screen' is OFF (1 = 100%).")
+      .setName(this.plugin.i18nManager.t().settings.defaultZoomLevel)
+      .setDesc(this.plugin.i18nManager.t().settings.defaultZoomLevelDesc)
       .setClass("zoom-level-setting") // Class for show/hide
       .addSlider((slider) =>
         slider
@@ -8979,10 +9347,10 @@ class ChornicaSettingTab extends PluginSettingTab {
     }
 
     // --- Statistics Panel Settings ---
-    containerEl.createEl("h3", { text: "Statistics Panel" });
+    containerEl.createEl("h3", { text: this.plugin.i18nManager.t().settings.statisticsPanel });
     new Setting(containerEl)
-      .setName("Default Panel State")
-      .setDesc("Have the statistics panel open when Chronica view loads.")
+      .setName(this.plugin.i18nManager.t().settings.defaultPanelState)
+      .setDesc(this.plugin.i18nManager.t().settings.defaultPanelStateDesc)
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.isStatsOpen)
@@ -8994,8 +9362,8 @@ class ChornicaSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Default Panel Height")
-      .setDesc("Initial height of the statistics panel in pixels.")
+      .setName(this.plugin.i18nManager.t().settings.defaultPanelHeight)
+      .setDesc(this.plugin.i18nManager.t().settings.defaultPanelHeightDesc)
       .addSlider((slider) =>
         slider
           .setLimits(150, 600, 10) // Finer steps
@@ -9008,8 +9376,8 @@ class ChornicaSettingTab extends PluginSettingTab {
           })
       );
     new Setting(containerEl)
-      .setName("Default Panel Width")
-      .setDesc("Initial width of the statistics panel in pixels.")
+      .setName(this.plugin.i18nManager.t().settings.defaultPanelWidth)
+      .setDesc(this.plugin.i18nManager.t().settings.defaultPanelWidthDesc)
       .addSlider((slider) =>
         slider
           .setLimits(400, 1200, 20) // Width range
@@ -9023,14 +9391,14 @@ class ChornicaSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Default Panel Tab")
-      .setDesc("Which tab the statistics panel opens to.")
+      .setName(this.plugin.i18nManager.t().settings.defaultPanelTab)
+      .setDesc(this.plugin.i18nManager.t().settings.defaultPanelTabDesc)
       .addDropdown((dropdown) => {
         dropdown
-          .addOption("overview", "Overview")
-          .addOption("events", "Events")
-          .addOption("timeline", "Timeline")
-          .addOption("charts", "Charts")
+          .addOption("overview", this.plugin.i18nManager.t().stats.overview)
+          .addOption("events", this.plugin.i18nManager.t().stats.events)
+          .addOption("timeline", this.plugin.i18nManager.t().stats.timeline)
+          .addOption("charts", this.plugin.i18nManager.t().stats.charts)
           .setValue(this.plugin.settings.activeStatsTab)
           .onChange(async (value) => {
             this.plugin.settings.activeStatsTab = value;
@@ -9039,47 +9407,37 @@ class ChornicaSettingTab extends PluginSettingTab {
       });
 
     // --- NEW Data Management Section ---
-    containerEl.createEl("h3", { text: "Data Management" });
+    containerEl.createEl("h3", { text: this.plugin.i18nManager.t().settings.dataManagement });
     // Clear All Events Button
     new Setting(containerEl)
-      .setName("Clear All Events")
-      .setDesc(
-        "Permanently delete all recorded events. This does NOT delete notes. Event type definitions will remain."
-      )
+      .setName(this.plugin.i18nManager.t().settings.clearAllEvents)
+      .setDesc(this.plugin.i18nManager.t().settings.clearAllEventsDesc)
       .addButton((button) => {
         button
-          .setButtonText("Clear All Events")
+          .setButtonText(this.plugin.i18nManager.t().settings.clearAllEventsButton)
           .setWarning() // Make the button look cautionary
           .onClick(async () => {
             if (
-              confirm(
-                "DANGER: Are you sure you want to delete ALL recorded events from Chronica's settings? This will NOT delete your notes, but the links in Chronica will be gone. This cannot be undone."
-              )
+              confirm(this.plugin.i18nManager.t().settings.clearAllEventsConfirm)
             ) {
               this.plugin.settings.events = []; // Clear the new events array
               await this.plugin.saveSettings();
               this.refreshAllViews(); // Update views
-              new Notice(
-                "All recorded events have been cleared from Chronica settings."
-              );
+              new Notice(this.plugin.i18nManager.t().settings.clearAllEventsNotice);
             }
           });
       });
     // Reset Event Types Button
     new Setting(containerEl)
-      .setName("Reset Event Types & Events")
-      .setDesc(
-        "Reset event types to the default presets (Major Life, etc.). This will ALSO CLEAR ALL RECORDED EVENTS because their type links will become invalid."
-      )
+      .setName(this.plugin.i18nManager.t().settings.resetEventTypes)
+      .setDesc(this.plugin.i18nManager.t().settings.resetEventTypesDesc)
       .addButton((button) => {
         button
-          .setButtonText("Reset Types & Clear Events")
+          .setButtonText(this.plugin.i18nManager.t().settings.resetEventTypesButton)
           .setWarning() // Make the button look cautionary
           .onClick(async () => {
             if (
-              confirm(
-                "DANGER: Are you sure you want to reset event types to default? This will also DELETE ALL recorded events from Chronica's settings. This cannot be undone."
-              )
+              confirm(this.plugin.i18nManager.t().settings.resetEventTypesConfirm)
             ) {
               // Reset types to default (deep copy)
               this.plugin.settings.eventTypes = JSON.parse(
@@ -9089,13 +9447,13 @@ class ChornicaSettingTab extends PluginSettingTab {
               this.plugin.settings.events = [];
               await this.plugin.saveSettings();
               this.refreshAllViews(); // Update views
-              new Notice("Event types reset to default. All events cleared.");
+              new Notice(this.plugin.i18nManager.t().settings.resetEventTypesNotice);
             }
           });
       });
 
     // --- Tips & Shortcuts Section (Keep as is) ---
-    containerEl.createEl("h3", { text: "Tips & Shortcuts" });
+    containerEl.createEl("h3", { text: this.plugin.i18nManager.t().settings.tipsShortcuts });
     const tipsContainer = containerEl.createDiv({
       cls: "chronica-tips-container",
     });
@@ -9104,93 +9462,95 @@ class ChornicaSettingTab extends PluginSettingTab {
       cls: "chronica-tips-details",
     });
     navigationDetails.createEl("summary", {
-      text: "Basic Navigation",
+      text: this.plugin.i18nManager.t().settings.basicNavigation,
       cls: "chronica-tips-summary",
     });
     const navContent = navigationDetails.createDiv({
       cls: "chronica-tips-content",
     });
     navContent.createEl("p", {
-      text: "• Click on any week cell to create or open its note.",
+      text: this.plugin.i18nManager.t().tips.clickWeek,
     });
     navContent.createEl("p", {
-      text: "• Shift+Click on a week cell to quickly add an event for that date.",
+      text: this.plugin.i18nManager.t().tips.shiftClickEvent,
     });
     navContent.createEl("p", {
-      text: "• Hover over cells for week number and date range.",
+      text: this.plugin.i18nManager.t().tips.hoverCells,
     });
     navContent.createEl("p", {
-      text: "• Use sidebar zoom controls or 'Fit to Screen'.",
+      text: this.plugin.i18nManager.t().tips.zoomControls,
     });
     const eventsDetails = tipsContainer.createEl("details", {
       cls: "chronica-tips-details",
     });
     eventsDetails.createEl("summary", {
-      text: "Events & Planning",
+      text: this.plugin.i18nManager.t().settings.eventsPlanning,
       cls: "chronica-tips-summary",
     });
     const eventsContent = eventsDetails.createDiv({
       cls: "chronica-tips-content",
     });
     eventsContent.createEl("p", {
-      text: "• Use 'Add Event' button or Shift+Click.",
+      text: this.plugin.i18nManager.t().tips.addEvent,
     });
     eventsContent.createEl("p", {
-      text: "• Mark multi-week events using 'Date Range'.",
+      text: this.plugin.i18nManager.t().tips.markMultiWeek,
     });
     eventsContent.createEl("p", {
-      text: "• Manage custom event types (names/colors) via the button.",
+      text: this.plugin.i18nManager.t().tips.manageCustomTypes,
     });
     eventsContent.createEl("p", {
-      text: "• Edit preset type names/colors via 'Manage Types'.",
+      text: this.plugin.i18nManager.t().tips.editPresetTypes,
     });
     eventsContent.createEl("p", {
-      text: "• Events create/link to notes with YAML frontmatter.",
+      text: this.plugin.i18nManager.t().tips.eventsCreateNotes,
     });
     const customizationDetails = tipsContainer.createEl("details", {
       cls: "chronica-tips-details",
     });
     customizationDetails.createEl("summary", {
-      text: "Customization",
+      text: this.plugin.i18nManager.t().settings.customization,
       cls: "chronica-tips-summary",
     });
     const customContent = customizationDetails.createDiv({
       cls: "chronica-tips-content",
     });
     customContent.createEl("p", {
-      text: "• Change cell shapes (square, circle, diamond).",
+              text: `• ${this.plugin.i18nManager.t().settings.changeCellShapes}.`,
     });
     customContent.createEl("p", {
-      text: "• Switch between Landscape/Portrait grid orientation.",
+      text: this.plugin.i18nManager.t().tips.switchOrientation,
     });
     customContent.createEl("p", {
-      text: "• Toggle visibility of Decade, Week, Month, Birthday markers.",
+      text: this.plugin.i18nManager.t().tips.toggleMarkers,
     });
     customContent.createEl("p", {
-      text: "• Adjust colors for Past/Present/Future cells.",
+      text: this.plugin.i18nManager.t().tips.adjustColors,
     });
-    customContent.createEl("p", { text: "• Customize the footer quote." });
+    customContent.createEl("p", { 
+      text: this.plugin.i18nManager.t().tips.customizeQuote 
+    });
     const statsDetails = tipsContainer.createEl("details", {
       cls: "chronica-tips-details",
     });
     statsDetails.createEl("summary", {
-      text: "Statistics Panel",
+      text: this.plugin.i18nManager.t().settings.statisticsPanel,
       cls: "chronica-tips-summary",
     });
     const statsContent = statsDetails.createDiv({
       cls: "chronica-tips-content",
     });
     statsContent.createEl("p", {
-      text: "• Click handle at screen bottom to toggle panel.",
+      text: this.plugin.i18nManager.t().tips.togglePanel,
     });
     statsContent.createEl("p", {
-      text: "• Drag top handle to resize vertically.",
+      text: this.plugin.i18nManager.t().tips.resizeVertically,
     });
     statsContent.createEl("p", {
-      text: "• Drag side handles or header (not buttons) to resize/move horizontally.",
+      text: this.plugin.i18nManager.t().tips.resizeHorizontally,
     });
     statsContent.createEl("p", {
-      text: "• Explore different data views in the tabs.",
+      text: this.plugin.i18nManager.t().tips.exploreDataViews,
     });
     navigationDetails.setAttribute("open", ""); // Open first tip by default
   } // End of display() method
@@ -9209,12 +9569,7 @@ class ChornicaSettingTab extends PluginSettingTab {
    * Refresh all timeline views
    */
   refreshAllViews(): void {
-    this.app.workspace.getLeavesOfType(TIMELINE_VIEW_TYPE).forEach((leaf) => {
-      const view = leaf.view as ChornicaTimelineView;
-      // Ensure view exists and has the render method before calling
-      if (view && typeof view.renderView === "function") {
-        view.renderView();
-      }
-    });
+    // Call the plugin's main refreshAllViews method to ensure all view types are refreshed
+    this.plugin.refreshAllViews();
   }
 } // End of ChornicaSettingTab class
