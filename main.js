@@ -145,7 +145,9 @@ const en = {
         noEventsAddedYet: "No events added yet",
         addEventsToSeeCharts: "Add events to see charts and visualizations",
         // Life phases
+        earlyChildhood: "Early Childhood",
         childhood: "Childhood",
+        adolescence: "Adolescence",
         youngAdult: "Young Adult",
         earlyAdult: "Early Adult",
         middleAdult: "Middle Adult",
@@ -506,7 +508,7 @@ const ru = {
         // Additional stats content
         weeksLived: "недель прожито",
         weeksRemaining: "недель осталось",
-        years: "года",
+        years: "лет",
         decades: "десятилетия",
         // Russian plural forms for proper pluralization
         yearsOne: "год",
@@ -521,7 +523,9 @@ const ru = {
         noEventsAddedYet: "События еще не добавлены",
         addEventsToSeeCharts: "Добавьте события для просмотра графиков и визуализаций",
         // Life phases
+        earlyChildhood: "Раннее детство",
         childhood: "Детство",
+        adolescence: "Подростковый возраст",
         youngAdult: "Молодость",
         earlyAdult: "Ранняя зрелость",
         middleAdult: "Средняя зрелость",
@@ -1979,6 +1983,29 @@ class ChornicaTimelinePlugin extends obsidian.Plugin {
         const msPerWeek = 1000 * 60 * 60 * 24 * 7;
         // Return full weeks
         return Math.floor(diffMs / msPerWeek);
+    }
+    /**
+     * Calculate accurate age in years and remaining weeks
+     * @param birthday - Birth date
+     * @param today - Current date
+     * @returns Object with years and remaining weeks
+     */
+    getAccurateAge(birthday, today) {
+        // Calculate years more accurately by considering actual years passed
+        const yearsLived = today.getFullYear() - birthday.getFullYear();
+        const monthDiff = today.getMonth() - birthday.getMonth();
+        const dayDiff = today.getDate() - birthday.getDate();
+        // Adjust years if birthday hasn't occurred yet this year
+        const actualYearsLived = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)
+            ? yearsLived - 1
+            : yearsLived;
+        // Calculate weeks since last birthday
+        const lastBirthday = new Date(today.getFullYear(), birthday.getMonth(), birthday.getDate());
+        if (today < lastBirthday) {
+            lastBirthday.setFullYear(lastBirthday.getFullYear() - 1);
+        }
+        const weeksSinceLastBirthday = this.getFullWeekAge(lastBirthday, today);
+        return { years: actualYearsLived, remainingWeeks: weeksSinceLastBirthday };
     }
     /**
      * Get full path for a note, using settings folder if specified
@@ -5927,10 +5954,10 @@ class ChornicaTimelineView extends obsidian.ItemView {
         const totalWeeks = this.plugin.settings.lifespan * 52;
         const livedPercentage = Math.min(100, Math.max(0, (ageInWeeks / totalWeeks) * 100));
         const remainingWeeks = Math.max(0, totalWeeks - ageInWeeks);
-        const yearsLived = Math.floor(ageInWeeks / 52);
-        const remainingWeeksInYear = ageInWeeks % 52;
-        const decadesLived = Math.floor(yearsLived / 10);
-        const yearsIntoCurrentDecade = yearsLived % 10;
+        // Use accurate age calculation
+        const { years: actualYearsLived, remainingWeeks: remainingWeeksInYear } = this.plugin.getAccurateAge(birthdayDate, now);
+        const decadesLived = Math.floor(actualYearsLived / 10);
+        const yearsIntoCurrentDecade = actualYearsLived % 10;
         // --- Event Count Calculations (Using NEW structure) ---
         const totalEvents = this.plugin.settings.events.length;
         const eventsByType = [];
@@ -6029,7 +6056,7 @@ class ChornicaTimelineView extends obsidian.ItemView {
         });
         ageCard.createEl("div", {
             cls: "chronica-stat-value",
-            text: `${yearsLived} ${this.plugin.i18nManager.getRussianPlural(yearsLived, this.plugin.i18nManager.t().stats.yearsOne, this.plugin.i18nManager.t().stats.yearsFew, this.plugin.i18nManager.t().stats.yearsMany)}, ${remainingWeeksInYear} ${this.plugin.i18nManager.getRussianPlural(remainingWeeksInYear, this.plugin.i18nManager.t().stats.weeksOne, this.plugin.i18nManager.t().stats.weeksFew, this.plugin.i18nManager.t().stats.weeksMany)}`,
+            text: `${actualYearsLived} ${this.plugin.i18nManager.getRussianPlural(actualYearsLived, this.plugin.i18nManager.t().stats.yearsOne, this.plugin.i18nManager.t().stats.yearsFew, this.plugin.i18nManager.t().stats.yearsMany)}, ${remainingWeeksInYear} ${this.plugin.i18nManager.getRussianPlural(remainingWeeksInYear, this.plugin.i18nManager.t().stats.weeksOne, this.plugin.i18nManager.t().stats.weeksFew, this.plugin.i18nManager.t().stats.weeksMany)}`,
         });
         ageCard.createEl("div", {
             cls: "chronica-stat-subtitle",
@@ -6278,7 +6305,9 @@ class ChornicaTimelineView extends obsidian.ItemView {
         const birthdayDate = new Date(birthYear, birthMonth - 1, birthDay);
         const ageInWeeks = this.plugin.getFullWeekAge(birthdayDate, now); // Defined here
         this.plugin.settings.lifespan * 52;
-        const ageInYears = ageInWeeks / 52;
+        // Use accurate age calculation instead of simple division
+        const { years: actualYearsLived, remainingWeeks: remainingWeeksInYear } = this.plugin.getAccurateAge(birthdayDate, now);
+        const ageInYears = actualYearsLived + (remainingWeeksInYear / 52);
         const pastWeeks = ageInWeeks; // Assign here for use later
         // --- Render UI ---
         const timelineGrid = container.createEl("div", {
@@ -6296,7 +6325,7 @@ class ChornicaTimelineView extends obsidian.ItemView {
         let phaseColor = "";
         // (Phase calculation logic - unchanged)
         if (ageInYears < 5) {
-            currentPhase = "Early Childhood";
+            currentPhase = this.plugin.i18nManager.t().stats.earlyChildhood;
             phaseColor = "#8BC34A";
         }
         else if (ageInYears < 13) {
@@ -6304,7 +6333,7 @@ class ChornicaTimelineView extends obsidian.ItemView {
             phaseColor = "#4CAF50";
         }
         else if (ageInYears < 18) {
-            currentPhase = "Adolescence";
+            currentPhase = this.plugin.i18nManager.t().stats.adolescence;
             phaseColor = "#009688";
         }
         else if (ageInYears < 25) {
@@ -6365,7 +6394,7 @@ class ChornicaTimelineView extends obsidian.ItemView {
         });
         phasesCard.createEl("div", {
             cls: "chronica-current-phase",
-            text: `${this.plugin.i18nManager.t().stats.currentPhase}: ${currentPhase} (${Math.floor(ageInYears)} ${this.plugin.i18nManager.t().stats.years} old)`,
+            text: `${this.plugin.i18nManager.t().stats.currentPhase}: ${currentPhase} (${actualYearsLived} ${this.plugin.i18nManager.getRussianPlural(actualYearsLived, this.plugin.i18nManager.t().stats.yearsOne, this.plugin.i18nManager.t().stats.yearsFew, this.plugin.i18nManager.t().stats.yearsMany)})`,
         }).style.color = phaseColor;
         // --- Milestones Card (Unaffected by event structure change) ---
         const milestonesCard = timelineGrid.createEl("div", {
@@ -7354,10 +7383,10 @@ class ChronicaOverviewView extends obsidian.ItemView {
         const totalWeeks = this.plugin.settings.lifespan * 52;
         const livedPercentage = Math.min(100, Math.max(0, (ageInWeeks / totalWeeks) * 100));
         const remainingWeeks = Math.max(0, totalWeeks - ageInWeeks);
-        const yearsLived = Math.floor(ageInWeeks / 52);
-        const remainingWeeksInYear = ageInWeeks % 52;
-        const decadesLived = Math.floor(yearsLived / 10);
-        const yearsIntoCurrentDecade = yearsLived % 10;
+        // Use accurate age calculation
+        const { years: actualYearsLived, remainingWeeks: remainingWeeksInYear } = this.plugin.getAccurateAge(birthdayDate, now);
+        const decadesLived = Math.floor(actualYearsLived / 10);
+        const yearsIntoCurrentDecade = actualYearsLived % 10;
         // Event count calculations
         const totalEvents = this.plugin.settings.events.length;
         const eventsByType = [];
@@ -7453,7 +7482,7 @@ class ChronicaOverviewView extends obsidian.ItemView {
         });
         ageCard.createEl("div", {
             cls: "chronica-stat-value",
-            text: `${yearsLived} ${this.plugin.i18nManager.getRussianPlural(yearsLived, this.plugin.i18nManager.t().stats.yearsOne, this.plugin.i18nManager.t().stats.yearsFew, this.plugin.i18nManager.t().stats.yearsMany)}, ${remainingWeeksInYear} ${this.plugin.i18nManager.getRussianPlural(remainingWeeksInYear, this.plugin.i18nManager.t().stats.weeksOne, this.plugin.i18nManager.t().stats.weeksFew, this.plugin.i18nManager.t().stats.weeksMany)}`,
+            text: `${actualYearsLived} ${this.plugin.i18nManager.getRussianPlural(actualYearsLived, this.plugin.i18nManager.t().stats.yearsOne, this.plugin.i18nManager.t().stats.yearsFew, this.plugin.i18nManager.t().stats.yearsMany)}, ${remainingWeeksInYear} ${this.plugin.i18nManager.getRussianPlural(remainingWeeksInYear, this.plugin.i18nManager.t().stats.weeksOne, this.plugin.i18nManager.t().stats.weeksFew, this.plugin.i18nManager.t().stats.weeksMany)}`,
         });
         ageCard.createEl("div", {
             cls: "chronica-stat-subtitle",
